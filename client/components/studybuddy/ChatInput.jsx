@@ -15,7 +15,7 @@ import {
 } from 'lucide-react';
 import AgentStatusHeader from '../AgentStatusHeader';
 import LiveVoiceInterface from './LiveVoiceInterface';
-import LiveVoiceModal from './LiveVoiceModal';
+import GeminiLiveCenteredInterface from './GeminiLiveCenteredInterface';
 
 const ChatInput = ({
   message,
@@ -246,17 +246,17 @@ const ChatInput = ({
                 
                 {/* Voice and Info Icons Container */}
                 <div className="absolute right-1 sm:right-2 top-1/2 transform -translate-y-1/2 flex items-center gap-1">
-                  {/* Live Voice Button */}
+                  {/* Live Voice Button - Gemini Style */}
                   <button
                     onClick={() => setShowVoiceModal(true)}
-                    className={`p-1 rounded-full transition-colors ${
+                    className={`p-2 rounded-full transition-all duration-200 ${
                       isDark 
-                        ? 'text-gray-500 hover:text-blue-400 hover:bg-gray-700/50' 
-                        : 'text-gray-400 hover:text-blue-600 hover:bg-blue-100/50'
+                        ? 'text-gray-500 hover:text-blue-400 hover:bg-gray-700/50 hover:scale-110' 
+                        : 'text-gray-400 hover:text-blue-600 hover:bg-blue-100/50 hover:scale-110'
                     }`}
-                    title="Open Live Voice Chat"
+                    title="Open Gemini Live Voice Chat"
                   >
-                    <Radio className="w-3 h-3 sm:w-4 sm:h-4" />
+                    <Radio className="w-4 h-4 sm:w-5 sm:h-5" />
                   </button>
                   
                   {/* Info Icon with Tooltip */}
@@ -375,8 +375,8 @@ const ChatInput = ({
         </div>
       </div>
       
-      {/* Live Voice Modal */}
-      <LiveVoiceModal
+      {/* Gemini Live Centered Voice Modal */}
+      <GeminiLiveCenteredInterface
         isOpen={showVoiceModal}
         onClose={() => setShowVoiceModal(false)}
         multiAgentMode={multiAgentMode}

@@ -12,6 +12,7 @@ import {
   Zap,
   Activity
 } from 'lucide-react';
+import { VoiceSelector } from '../../lib/VoiceSelector';
 
 const LiveVoiceInterface = ({ 
   multiAgentMode, 
@@ -216,9 +217,21 @@ const LiveVoiceInterface = ({
     setIsSpeaking(true);
     
     const utterance = new SpeechSynthesisUtterance(text);
-    utterance.rate = 0.9;
-    utterance.pitch = 1;
-    utterance.volume = 1;
+    
+    // Use standard voice selector for most reliable voice
+    const selectedVoice = VoiceSelector.getStandardVoice();
+    if (selectedVoice) {
+      utterance.voice = selectedVoice;
+      const settings = VoiceSelector.getOptimalSettings(selectedVoice);
+      utterance.rate = settings.rate;
+      utterance.pitch = settings.pitch;
+      utterance.volume = settings.volume;
+    } else {
+      // Fallback settings for default voice
+      utterance.rate = 0.95;
+      utterance.pitch = 1.0;
+      utterance.volume = 1.0;
+    }
     
     utterance.onend = () => {
       setIsSpeaking(false);

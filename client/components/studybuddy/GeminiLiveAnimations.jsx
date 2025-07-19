@@ -9,7 +9,8 @@ const GeminiLiveAnimations = ({
   audioLevel = 0,
   multiAgentMode = false,
   currentAgent = 'general',
-  isDark = false 
+  isDark = false,
+  size = 128 // Default size in pixels
 }) => {
   const [animationPhase, setAnimationPhase] = useState(0);
 
@@ -62,62 +63,99 @@ const GeminiLiveAnimations = ({
 
   // Listening Animation - Concentric circles with audio reactive
   const ListeningAnimation = () => (
-    <div className="relative w-16 h-16 flex items-center justify-center">
-      {[...Array(3)].map((_, i) => (
+    <div className="relative w-32 h-32 flex items-center justify-center">
+      {/* Outer pulsing rings */}
+      {[...Array(4)].map((_, i) => (
         <div
           key={i}
-          className="absolute rounded-full border-2 opacity-60"
+          className="absolute rounded-full border-2 opacity-40"
           style={{
-            width: `${40 + (i * 12) + (audioLevel * 20)}px`,
-            height: `${40 + (i * 12) + (audioLevel * 20)}px`,
+            width: `${60 + (i * 20) + (audioLevel * 30)}px`,
+            height: `${60 + (i * 20) + (audioLevel * 30)}px`,
             borderColor: colors.primary,
-            opacity: 0.6 - (i * 0.2),
-            animation: `pulse ${1 + (i * 0.3)}s ease-in-out infinite`,
-            animationDelay: `${i * 0.2}s`
+            opacity: 0.8 - (i * 0.15),
+            animation: `pulse ${1.5 + (i * 0.4)}s ease-in-out infinite`,
+            animationDelay: `${i * 0.15}s`
           }}
         />
       ))}
+      
+      {/* Main orb */}
       <div 
-        className="w-8 h-8 rounded-full flex items-center justify-center"
+        className="w-16 h-16 rounded-full flex items-center justify-center relative z-10"
         style={{
-          background: `linear-gradient(to right, ${colors.primary}, ${colors.secondary})`
+          background: `radial-gradient(circle, ${colors.primary}, ${colors.secondary})`,
+          boxShadow: `0 0 30px ${colors.primary}40`,
+          transform: `scale(${1 + audioLevel * 0.3})`
         }}
       >
-        <div className="w-2 h-2 bg-white rounded-full animate-ping" />
+        {/* Inner pulse */}
+        <div 
+          className="w-8 h-8 bg-white/80 rounded-full"
+          style={{
+            transform: `scale(${0.8 + audioLevel * 0.4})`,
+            opacity: 0.9
+          }}
+        />
       </div>
+      
+      {/* Audio reactive particles */}
+      {[...Array(8)].map((_, i) => (
+        <div
+          key={`particle-${i}`}
+          className="absolute w-1 h-1 rounded-full"
+          style={{
+            backgroundColor: colors.secondary,
+            transformOrigin: '64px 64px',
+            transform: `rotate(${i * 45}deg) translateX(${40 + audioLevel * 20}px)`,
+            opacity: 0.6 + audioLevel * 0.4,
+            animation: `spin 3s linear infinite`
+          }}
+        />
+      ))}
     </div>
   );
 
   // Processing Animation - Rotating particles
   const ProcessingAnimation = () => (
-    <div className="relative w-16 h-16 flex items-center justify-center">
+    <div className="relative w-32 h-32 flex items-center justify-center">
+      {/* Central orb */}
       <div 
-        className="w-8 h-8 rounded-full"
+        className="w-16 h-16 rounded-full relative z-10"
         style={{
-          background: `linear-gradient(to right, ${colors.primary}, ${colors.secondary})`
+          background: `radial-gradient(circle, ${colors.primary}, ${colors.secondary})`,
+          boxShadow: `0 0 25px ${colors.primary}30`
         }}
-      />
+      >
+        <div className="w-full h-full rounded-full border-2 border-white/20 animate-spin" 
+             style={{ animationDuration: '2s' }} />
+      </div>
       
-      {[...Array(6)].map((_, i) => (
+      {/* Orbiting particles */}
+      {[...Array(8)].map((_, i) => (
         <div
           key={i}
-          className="absolute w-2 h-2 rounded-full"
+          className="absolute w-3 h-3 rounded-full"
           style={{
-            backgroundColor: colors.primary,
-            transformOrigin: '32px 32px',
-            transform: `rotate(${(i * 60) + (animationPhase * 45)}deg) translateX(24px)`,
-            opacity: 0.7,
-            transition: 'transform 0.15s ease-out'
+            backgroundColor: i % 2 === 0 ? colors.primary : colors.secondary,
+            transformOrigin: '64px 64px',
+            transform: `rotate(${(i * 45) + (animationPhase * 30)}deg) translateX(50px)`,
+            opacity: 0.8,
+            transition: 'transform 0.1s ease-out',
+            boxShadow: `0 0 10px ${i % 2 === 0 ? colors.primary : colors.secondary}50`
           }}
         />
       ))}
       
+      {/* Multi-agent indicator */}
       {multiAgentMode && (
-        <div className="absolute -top-1 -right-1">
+        <div className="absolute -top-2 -right-2 z-20">
           <div 
-            className="w-3 h-3 rounded-full animate-pulse"
+            className="w-6 h-6 rounded-full animate-pulse flex items-center justify-center text-xs font-bold text-white"
             style={{ backgroundColor: colors.secondary }}
-          />
+          >
+            AI
+          </div>
         </div>
       )}
     </div>
@@ -125,31 +163,64 @@ const GeminiLiveAnimations = ({
 
   // Speaking Animation - Sound waves
   const SpeakingAnimation = () => (
-    <div className="relative w-16 h-16 flex items-center justify-center">
+    <div className="relative w-32 h-32 flex items-center justify-center">
+      {/* Central orb */}
       <div 
-        className="w-8 h-8 rounded-full"
+        className="w-16 h-16 rounded-full relative z-10"
         style={{
-          background: `linear-gradient(to right, ${colors.primary}, ${colors.secondary})`
+          background: `radial-gradient(circle, ${colors.primary}, ${colors.secondary})`,
+          boxShadow: `0 0 30px ${colors.primary}40`
         }}
-      />
+      >
+        {/* Speaking indicator */}
+        <div className="w-full h-full rounded-full flex items-center justify-center">
+          <div className="w-6 h-6 bg-white/90 rounded-full animate-pulse" />
+        </div>
+      </div>
       
-      {[...Array(4)].map((_, i) => (
+      {/* Sound wave visualization */}
+      {[...Array(6)].map((_, i) => (
         <div
           key={i}
-          className="absolute"
+          className="absolute flex items-center justify-center"
           style={{
-            left: `${24 + (i * 8)}px`,
+            left: `${96 + (i * 12)}px`,
             top: '50%',
             transform: 'translateY(-50%)'
           }}
         >
           <div
-            className="w-1 rounded-full"
+            className="bg-white/70 rounded-full"
             style={{
-              backgroundColor: colors.primary,
-              height: `${8 + Math.sin((animationPhase + i) * 0.8) * 12}px`,
-              opacity: 0.8 - (i * 0.15),
-              transition: 'height 0.15s ease-out'
+              width: '3px',
+              height: `${10 + Math.sin((animationPhase + i) * 0.5) * 20}px`,
+              opacity: 0.9 - (i * 0.12),
+              transition: 'height 0.1s ease-out',
+              backgroundColor: colors.primary
+            }}
+          />
+        </div>
+      ))}
+      
+      {/* Mirrored sound waves on the left */}
+      {[...Array(6)].map((_, i) => (
+        <div
+          key={`left-${i}`}
+          className="absolute flex items-center justify-center"
+          style={{
+            left: `${32 - (i * 12)}px`,
+            top: '50%',
+            transform: 'translateY(-50%)'
+          }}
+        >
+          <div
+            className="bg-white/70 rounded-full"
+            style={{
+              width: '3px',
+              height: `${10 + Math.sin((animationPhase + i + 3) * 0.5) * 20}px`,
+              opacity: 0.9 - (i * 0.12),
+              transition: 'height 0.1s ease-out',
+              backgroundColor: colors.secondary
             }}
           />
         </div>
@@ -159,16 +230,19 @@ const GeminiLiveAnimations = ({
 
   // Idle Animation - Gentle glow
   const IdleAnimation = () => (
-    <div className="relative w-16 h-16 flex items-center justify-center">
+    <div className="relative w-32 h-32 flex items-center justify-center">
       <div 
-        className={`w-8 h-8 rounded-full bg-gradient-to-r from-gray-400 to-gray-500 opacity-60`}
+        className="w-16 h-16 rounded-full bg-gradient-to-r from-gray-400 to-gray-500 opacity-70"
         style={{
           boxShadow: isDark 
-            ? '0 0 20px rgba(156, 163, 175, 0.3)' 
-            : '0 0 20px rgba(107, 114, 128, 0.2)'
+            ? '0 0 30px rgba(156, 163, 175, 0.2)' 
+            : '0 0 30px rgba(107, 114, 128, 0.15)'
         }}
       />
-      <div className="absolute w-10 h-10 rounded-full border border-gray-300 opacity-30 animate-ping" />
+      <div className="absolute w-20 h-20 rounded-full border border-gray-300/30 opacity-40 animate-ping" 
+           style={{ animationDuration: '3s' }} />
+      <div className="absolute w-24 h-24 rounded-full border border-gray-300/20 opacity-30 animate-ping" 
+           style={{ animationDuration: '4s', animationDelay: '1s' }} />
     </div>
   );
 

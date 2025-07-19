@@ -10,7 +10,7 @@ import { Brain } from 'lucide-react';
 // Import our new components
 import StudyBuddyLayout from '../../../../components/studybuddy/StudyBuddyLayout';
 import MessagesContainer from '../../../../components/studybuddy/MessagesContainer';
-import ChatInput from '../../../../components/studybuddy/ChatInput';
+import EnhancedChatInput from '../../../../components/studybuddy/EnhancedChatInput';
 
 // Import required styles
 import '../studybuddy.css';
@@ -634,7 +634,7 @@ export default function StudyBuddySession({ params: paramsPromise }) {
         setSidebarOpen={setSidebarOpen}
       />
 
-      <ChatInput
+      <EnhancedChatInput
         message={message}
         setMessage={setMessage}
         selectedFile={selectedFile}

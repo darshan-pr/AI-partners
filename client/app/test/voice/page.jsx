@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import LiveVoiceModal from '../../../components/studybuddy/LiveVoiceModal';
+import GeminiStyleVoiceInterface from '../../../components/studybuddy/GeminiStyleVoiceInterface';
 
 export default function VoiceTestPage() {
   const [showVoiceModal, setShowVoiceModal] = useState(false);
@@ -81,7 +81,7 @@ export default function VoiceTestPage() {
           </div>
         </div>
         
-        <LiveVoiceModal
+        <GeminiStyleVoiceInterface
           isOpen={showVoiceModal}
           onClose={() => setShowVoiceModal(false)}
           multiAgentMode={multiAgentMode}
