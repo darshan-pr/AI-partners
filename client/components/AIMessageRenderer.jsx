@@ -3,6 +3,18 @@
 import React from 'react';
 import { Copy } from 'lucide-react';
 
+// Helper to decode sanitized content stored with escape sequences
+const decodeContent = (text) => {
+  if (!text || typeof text !== 'string') return '';
+  try {
+    // Wrap the text in quotes so JSON.parse interprets escape sequences
+    return JSON.parse(`"${text}"`);
+  } catch (err) {
+    console.error('Failed to decode content', err);
+    return text;
+  }
+};
+
 const AIMessageRenderer = ({ content, isDark }) => {
   // Split content into blocks (paragraphs, code blocks, etc.)
   const parseContent = (text) => {
@@ -562,7 +574,9 @@ const AIMessageRenderer = ({ content, isDark }) => {
     }
   };
 
-  const blocks = parseContent(content);
+  // Decode stored escape sequences before rendering
+  const decodedContent = decodeContent(content);
+  const blocks = parseContent(decodedContent);
 
   return (
     <div className="ai-message-content">
