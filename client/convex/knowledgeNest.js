@@ -1,6 +1,17 @@
 import { v } from "convex/values";
 import { query, mutation } from "./_generated/server";
 
+// Utility function to sanitize content for safe storage
+function sanitizeText(text) {
+  if (!text || typeof text !== 'string') return '';
+  
+  return text
+    .replace(/\\/g, '\\\\')   // Escape backslashes
+    .replace(/"/g, '\\"')     // Escape quotes
+    .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '') // Remove control characters
+    .trim();
+}
+
 // Generate upload URL for file storage
 export const generateUploadUrl = mutation({
   args: {},
@@ -36,19 +47,19 @@ export const uploadFileMetadata = mutation({
         return { success: false, message: "User organization not found or not verified" };
       }
 
-      // Insert file metadata
+      // Insert file metadata with sanitized strings
       const fileRecord = await ctx.db.insert("knowledge_nest", {
         file_id: args.file_id,
         organization_id: orgData._id,
         class_sec: orgData.class_sec,
         branch: orgData.branch,
         uploaded_username: args.username,
-        subject: args.subject,
-        filename: args.filename,
+        subject: sanitizeText(args.subject),
+        filename: sanitizeText(args.filename),
         file_size: args.file_size,
-        file_type: args.file_type,
+        file_type: sanitizeText(args.file_type),
         upload_date: Date.now(),
-        description: args.description || "",
+        description: sanitizeText(args.description || ""),
         is_active: true,
       });
 

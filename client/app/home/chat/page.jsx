@@ -218,7 +218,8 @@ useEffect(() => {
     setShowOptions(false);
     const currentMode = selectedMode;
     setSelectedMode(null);
-    setResponseMode(currentMode);
+    // Set response mode to 'upload' if there's a file but no specific mode
+    setResponseMode(currentMode || (currentFile ? 'upload' : null));
 
     if (inputRef.current) {
       inputRef.current.style.height = '48px';

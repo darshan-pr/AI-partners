@@ -1,5 +1,6 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { NextResponse } from 'next/server';
+import pdf from 'pdf-parse';
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY_CHAT);
 
@@ -20,42 +21,196 @@ const GENERATION_CONFIG = {
 const MAX_HISTORY_LENGTH = 10; // Limit history to prevent context overflow
 const MAX_RETRIES = 2;
 
-// Enhanced file processing with better error handling
+// Utility function to sanitize content for safe JSON processing
+function sanitizeContent(content) {
+  if (!content || typeof content !== 'string') return '';
+  
+  return content
+    .replace(/\\/g, '\\\\')   // Escape backslashes
+    .replace(/"/g, '\\"')     // Escape quotes
+    .replace(/\n/g, '\\n')    // Escape newlines
+    .replace(/\r/g, '\\r')    // Escape carriage returns
+    .replace(/\t/g, '\\t')    // Escape tabs
+    .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '') // Remove control characters
+    .replace(/[\u0080-\uFFFF]/g, function(match) {
+      // Convert non-ASCII characters to unicode escape sequences
+      return '\\u' + ('0000' + match.charCodeAt(0).toString(16)).slice(-4);
+    });
+}
+
+// Enhanced file processing with better error handling and content sanitization
 async function processFile(file) {
   try {
     if (!file || file.size === 0) {
       throw new Error('Invalid file provided');
     }
 
+    console.log(`[FILE PROCESSING] Starting to process file: ${file.name} (${(file.size / 1024).toFixed(2)} KB)`);
+    
+    // Add artificial delay to show loading state for small files
+    if (file.size < 100 * 1024) { // Files smaller than 100KB
+      await new Promise(resolve => setTimeout(resolve, 800)); // 800ms delay
+    } else if (file.size < 1024 * 1024) { // Files smaller than 1MB
+      await new Promise(resolve => setTimeout(resolve, 1200)); // 1.2s delay
+    } else {
+      await new Promise(resolve => setTimeout(resolve, 2000)); // 2s delay for larger files
+    }
+
     const buffer = Buffer.from(await file.arrayBuffer());
     const fileName = file.name.toLowerCase();
     const fileSize = (buffer.length / 1024).toFixed(2);
     
+    console.log(`[FILE PROCESSING] File buffer created successfully: ${fileSize} KB`);
+    
     let content = '';
     
     if (fileName.endsWith('.pdf')) {
-      content = `📄 PDF Document Analysis:
-      • File: ${file.name}
-      • Size: ${fileSize} KB
-      • Type: PDF Document
+      console.log(`[FILE PROCESSING] Processing PDF document: ${file.name}`);
+      try {
+        console.log(`[FILE PROCESSING] Extracting text from PDF: ${file.name}`);
+        const pdfData = await pdf(buffer);
+        
+        if (pdfData.text && pdfData.text.trim().length > 0) {
+          const sanitizedText = sanitizeContent(pdfData.text.trim());
+          const wordCount = pdfData.text.split(/\s+/).filter(word => word.length > 0).length;
+          const pageCount = pdfData.numpages;
+          
+          console.log(`[FILE PROCESSING] PDF text extraction successful: ${wordCount} words, ${pageCount} pages`);
+          
+          content = `📄 PDF Document Content:
+• File: ${file.name}
+• Size: ${fileSize} KB
+• Pages: ${pageCount}
+• Word Count: ${wordCount}
+
+Full Text Content:
+${sanitizedText}`;
+        } else {
+          console.log(`[FILE PROCESSING] PDF text extraction returned empty content`);
+          content = `📄 PDF Document Analysis:
+• File: ${file.name}
+• Size: ${fileSize} KB
+• Status: PDF file received but no extractable text found
+• Note: This might be a scanned PDF or contain only images
+
+The PDF was processed but appears to contain no readable text. This could happen if:
+- The PDF contains only images or scanned pages
+- The PDF is password protected
+- The PDF has formatting that prevents text extraction`;
+        }
+      } catch (pdfError) {
+        console.error(`[FILE PROCESSING] PDF extraction error:`, pdfError);
+        content = `📄 PDF Document Processing Error:
+• File: ${file.name}
+• Size: ${fileSize} KB
+• Error: ${pdfError.message}
+
+Unable to extract text from this PDF file. The file may be:
+- Corrupted or damaged
+- Password protected
+- In an unsupported PDF format
+- Too complex for automatic text extraction
+
+Please try converting the PDF to text format or use a different file.`;
+      }
       
-      Note: For full PDF text extraction, please install pdf-parse library.
-      Current status: File received and ready for processing.`;
+    } else if (fileName.endsWith('.txt') || fileName.endsWith('.md') || fileName.endsWith('.csv') || 
+               fileName.endsWith('.json') || fileName.endsWith('.xml') || fileName.endsWith('.html') ||
+               fileName.endsWith('.css') || fileName.endsWith('.js') || fileName.endsWith('.py') ||
+               fileName.endsWith('.java') || fileName.endsWith('.cpp') || fileName.endsWith('.c') ||
+               fileName.endsWith('.sql') || fileName.endsWith('.yml') || fileName.endsWith('.yaml') ||
+               file.type.includes('text/') || file.type.includes('application/json')) {
+      console.log(`[FILE PROCESSING] Processing text file: ${file.name}`);
+      try {
+        const textContent = buffer.toString('utf-8');
+        // Sanitize content to prevent JSON parsing issues
+        const sanitizedContent = sanitizeContent(textContent);
+        
+        const wordCount = textContent.split(/\s+/).filter(word => word.length > 0).length;
+        const lineCount = textContent.split('\n').length;
+        
+        // For very large files, provide a preview
+        const maxLength = 8000; // Reasonable limit for AI processing
+        let displayContent = sanitizedContent;
+        let truncated = false;
+        
+        if (sanitizedContent.length > maxLength) {
+          displayContent = sanitizedContent.substring(0, maxLength);
+          truncated = true;
+        }
+        
+        const fileTypeMap = {
+          '.txt': 'Plain Text',
+          '.md': 'Markdown',
+          '.csv': 'CSV Data',
+          '.json': 'JSON Data',
+          '.xml': 'XML Document',
+          '.html': 'HTML Document',
+          '.css': 'CSS Stylesheet',
+          '.js': 'JavaScript',
+          '.py': 'Python Code',
+          '.java': 'Java Code',
+          '.cpp': 'C++ Code',
+          '.c': 'C Code'
+        };
+        
+        const extension = fileName.substring(fileName.lastIndexOf('.'));
+        const fileTypeDescription = fileTypeMap[extension] || 'Text File';
+        
+        content = `📝 ${fileTypeDescription} Content:
+• File: ${file.name}
+• Size: ${fileSize} KB
+• Lines: ${lineCount}
+• Word Count: ${wordCount}
+${truncated ? '• Note: Large file truncated for processing\n' : ''}
+Full Content:
+${displayContent}${truncated ? '\n\n[Content truncated - showing first 8,000 characters]' : ''}`;
+        
+      } catch (textError) {
+        console.error(`[FILE PROCESSING] Text file processing error:`, textError);
+        content = `📝 Text File Processing Error:
+• File: ${file.name}
+• Size: ${fileSize} KB
+• Error: ${textError.message}
+
+Unable to read the text content. The file may have encoding issues or be corrupted.`;
+      }
       
-    } else if (fileName.endsWith('.txt')) {
-      const textContent = buffer.toString('utf-8');
-      const wordCount = textContent.split(/\s+/).filter(word => word.length > 0).length;
-      const preview = textContent.substring(0, 500);
+    } else if (fileName.endsWith('.docx') || fileName.endsWith('.doc')) {
+      console.log(`[FILE PROCESSING] Processing Word document: ${file.name}`);
+      content = `📝 Word Document Analysis:
+• File: ${file.name}
+• Size: ${fileSize} KB
+• Type: Microsoft Word Document
+• Status: Document received successfully
+
+Note: For full Word document text extraction, additional libraries would be needed.
+Current status: File structure analyzed and ready for processing.`;
       
-      content = `📝 Text File Analysis:
-      • File: ${file.name}
-      • Size: ${fileSize} KB
-      • Word Count: ${wordCount}
+    } else if (fileName.endsWith('.pptx') || fileName.endsWith('.ppt')) {
+      console.log(`[FILE PROCESSING] Processing PowerPoint presentation: ${file.name}`);
+      content = `🎯 PowerPoint Presentation Analysis:
+• File: ${file.name}
+• Size: ${fileSize} KB
+• Type: Microsoft PowerPoint Presentation
+• Status: Presentation received successfully
+
+Note: For full PowerPoint content extraction, additional libraries would be needed.
+Current status: Presentation structure analyzed and ready for processing.`;
       
-      Preview:
-      ${preview}${textContent.length > 500 ? '...\n\n[Content truncated for preview]' : ''}`;
+    } else if (fileName.endsWith('.xlsx') || fileName.endsWith('.xls')) {
+      console.log(`[FILE PROCESSING] Processing Excel spreadsheet: ${file.name}`);
+      content = `📊 Excel Spreadsheet Analysis:
+• File: ${file.name}
+• Size: ${fileSize} KB
+• Type: Microsoft Excel Spreadsheet
+• Status: Spreadsheet received successfully
+
+Note: For full Excel data extraction, additional libraries would be needed.
+Current status: Spreadsheet structure analyzed and ready for processing.`;
       
     } else if (file.type.startsWith('image/')) {
+      console.log(`[FILE PROCESSING] Processing image file: ${file.name}`);
       const base64Data = buffer.toString('base64');
       return {
         type: 'image',
@@ -68,13 +223,17 @@ async function processFile(file) {
       };
       
     } else {
+      console.log(`[FILE PROCESSING] Processing generic file: ${file.name}`);
       content = `📁 File Upload:
-      • File: ${file.name}
-      • Size: ${fileSize} KB
-      • Type: ${file.type || 'Unknown'}
-      • Status: File received successfully`;
+• File: ${file.name}
+• Size: ${fileSize} KB
+• Type: ${file.type || 'Unknown'}
+• Status: File received successfully
+
+This file type is supported for upload but may require specific processing based on its content.`;
     }
     
+    console.log(`[FILE PROCESSING] File processing completed successfully: ${file.name}`);
     return { type: 'text', content: content };
   } catch (error) {
     console.error('File processing error:', error);
@@ -205,19 +364,41 @@ function buildActionPrompt(action, fileProcessingResult) {
   }
 }
 
-// Retry logic with exponential backoff
+// Retry logic with exponential backoff and better error handling
 async function generateWithRetry(model, prompt, maxRetries = MAX_RETRIES) {
   let lastError;
   
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
     try {
+      // Sanitize the prompt before sending to prevent JSON parsing issues
+      const sanitizedPrompt = sanitizeContent(prompt);
+      
       const result = await model.generateContent({
-        contents: [{ role: 'user', parts: [{ text: prompt }] }],
+        contents: [{ role: 'user', parts: [{ text: sanitizedPrompt }] }],
       });
       
-      return await result.response;
+      const response = await result.response;
+      
+      // Validate response before returning
+      if (!response) {
+        throw new Error('Empty response from model');
+      }
+      
+      return response;
     } catch (error) {
       lastError = error;
+      console.error(`Attempt ${attempt + 1} failed:`, error.message);
+      
+      // Handle specific JSON parsing errors
+      if (error.message?.includes('invalid json') || error.message?.includes('hex escape')) {
+        console.error('JSON parsing error detected, sanitizing content and retrying...');
+        // On JSON errors, don't retry immediately - the error is likely in our prompt
+        if (attempt === 0) {
+          // Try to clean the prompt more aggressively
+          prompt = prompt.replace(/[\x00-\x1F\x7F-\x9F]/g, ''); // Remove all control characters
+          continue;
+        }
+      }
       
       if (attempt < maxRetries) {
         // Exponential backoff: wait 1s, then 2s, then 4s
@@ -280,16 +461,23 @@ export async function POST(request) {
       const userMessage = message || 'Please analyze this image in detail.';
       
       try {
+        console.log(`[IMAGE ANALYSIS] Starting image analysis for: ${fileProcessingResult.data.fileName}`);
+        
         const model = genAI.getGenerativeModel({ 
           model: MODELS.VISION,
           generationConfig: GENERATION_CONFIG,
         });
+        
+        // Add processing delay to show loading state
+        await new Promise(resolve => setTimeout(resolve, 1000));
         
         const imageAnalysisResult = await analyzeImage(
           fileProcessingResult.data, 
           userMessage, 
           model
         );
+        
+        console.log(`[IMAGE ANALYSIS] Image analysis completed successfully`);
         
         return NextResponse.json({ 
           message: imageAnalysisResult,
@@ -316,7 +504,7 @@ export async function POST(request) {
     // Build conversation context for current mode
     const contextPrompt = buildConversationContext(history, currentMode, webSearch, action);
     
-    // Build the main prompt
+    // Build the main prompt with proper sanitization
     let fullPrompt = contextPrompt;
     
     if (action) {
@@ -326,9 +514,30 @@ export async function POST(request) {
       const userMessage = message || 'Please analyze the uploaded file.';
       
       if (fileProcessingResult && fileProcessingResult.type === 'text') {
-        fullPrompt += `File content:\n${fileProcessingResult.content}\n\nHuman: ${userMessage}`;
+        // Sanitize file content to prevent JSON parsing issues
+        const sanitizedContent = sanitizeContent(fileProcessingResult.content);
+        
+        // Add enhanced context for document analysis
+        const documentContext = `
+You have been provided with a document for analysis. Please analyze the content thoroughly and provide comprehensive insights.
+
+Document Information and Content:
+${sanitizedContent}
+
+Instructions for analysis:
+- If this is educational content, explain key concepts clearly
+- If this is technical documentation, break down complex information
+- Provide practical examples and applications where relevant
+- Answer any specific questions about the content
+- Highlight important points and main takeaways
+
+`;
+        
+        fullPrompt += `${documentContext}\nHuman: ${userMessage}`;
       } else if (fileProcessingResult && fileProcessingResult.type === 'error') {
-        fullPrompt += `File processing error:\n${fileProcessingResult.content}\n\nHuman: ${userMessage}`;
+        // Sanitize error content as well
+        const sanitizedError = sanitizeContent(fileProcessingResult.content);
+        fullPrompt += `File processing encountered an issue:\n${sanitizedError}\n\nHuman: ${userMessage}`;
       } else {
         fullPrompt += `Human: ${userMessage}`;
       }
@@ -350,8 +559,13 @@ export async function POST(request) {
 
     const model = genAI.getGenerativeModel(modelConfig);
     
+    console.log(`[AI GENERATION] Starting content generation with model: ${modelName}`);
+    console.log(`[AI GENERATION] Prompt length: ${fullPrompt.length} characters`);
+    
     // Generate response with retry logic
     const response = await generateWithRetry(model, fullPrompt);
+    
+    console.log(`[AI GENERATION] Content generation completed successfully`);
     
     // Extract thinking and main content
     const { thinking, main } = extractThinkingContent(response, thinkMode);
@@ -400,7 +614,12 @@ export async function POST(request) {
     let statusCode = 500;
     let retryable = false;
     
-    if (error.message?.includes('API_KEY') || error.message?.includes('API key')) {
+    // Handle JSON parsing errors specifically
+    if (error.message?.includes('invalid json') || error.message?.includes('hex escape')) {
+      errorMessage = 'Content contains invalid characters that cannot be processed. Please try rephrasing your message or uploading a different file.';
+      statusCode = 400;
+      console.error('JSON parsing error detected. Raw error:', error.message);
+    } else if (error.message?.includes('API_KEY') || error.message?.includes('API key')) {
       errorMessage = 'Gemini API key is missing or invalid';
       statusCode = 401;
     } else if (error.message?.includes('quota') || error.message?.includes('QUOTA')) {
@@ -428,7 +647,8 @@ export async function POST(request) {
         error: errorMessage,
         details: process.env.NODE_ENV === 'development' ? error.message : undefined,
         success: false,
-        retryable: retryable
+        retryable: retryable,
+        errorType: error.message?.includes('invalid json') ? 'JSON_PARSE_ERROR' : 'UNKNOWN'
       },
       { status: statusCode }
     );

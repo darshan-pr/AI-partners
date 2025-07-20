@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { useMutation, useQuery } from 'convex/react';
 import { api } from '@/convex/_generated/api';
 import { 
@@ -276,11 +277,42 @@ const FilePreviewModal = ({
 
   if (!isOpen || !file) return null;
 
-  return (
-    <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50">
-      <div className={`w-full h-full max-w-7xl max-h-[95vh] m-4 rounded-xl shadow-2xl overflow-hidden flex flex-col ${
-        isDark ? 'bg-gray-900 text-white' : 'bg-white text-gray-900'
-      }`}>
+  // Create portal content to render at document root level
+  const modalContent = (
+    <div 
+      className="fixed inset-0 bg-black bg-opacity-75 z-[9999]"
+      style={{ 
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: '1rem',
+        margin: 0,
+        zIndex: 9999
+      }}
+      onClick={(e) => {
+        // Close modal when clicking backdrop
+        if (e.target === e.currentTarget) {
+          onClose();
+        }
+      }}
+    >
+      <div 
+        className={`w-full max-w-7xl rounded-xl shadow-2xl overflow-hidden flex flex-col ${
+          isDark ? 'bg-gray-900 text-white' : 'bg-white text-gray-900'
+        }`}
+        style={{
+          height: 'auto',
+          minHeight: '60vh',
+          maxHeight: '90vh',
+          position: 'relative'
+        }}
+        onClick={(e) => e.stopPropagation()}
+      >
         {/* Header */}
         <div className={`px-6 py-4 border-b flex items-center justify-between ${
           isDark ? 'border-gray-700 bg-gray-800' : 'border-gray-200 bg-gray-50'
@@ -386,6 +418,11 @@ const FilePreviewModal = ({
       </div>
     </div>
   );
+
+  // Use React Portal to render modal at document root level for perfect centering
+  return typeof window !== 'undefined' 
+    ? createPortal(modalContent, document.body)
+    : null;
 };
 
 export default FilePreviewModal;

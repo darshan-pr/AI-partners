@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { 
   Send, 
   Paperclip, 
@@ -16,10 +17,12 @@ import {
   MicOff,
   Volume2,
   VolumeX,
-  Minimize2
+  Minimize2,
+  BookOpen
 } from 'lucide-react';
 import AgentStatusHeader from '../AgentStatusHeader';
 import { VoiceSelector } from '../../lib/VoiceSelector';
+import KnowledgeNestFileSelector from '../KnowledgeNestFileSelector';
 
 const EnhancedChatInput = ({
   message,
@@ -38,6 +41,10 @@ const EnhancedChatInput = ({
   username
 }) => {
   const [showInfoTooltip, setShowInfoTooltip] = useState(false);
+  const [showFileSelector, setShowFileSelector] = useState(false);
+  const [showKnowledgeNestSelector, setShowKnowledgeNestSelector] = useState(false);
+  const [dropdownPosition, setDropdownPosition] = useState({ top: 0, left: 0 });
+  const [tooltipPosition, setTooltipPosition] = useState({ top: 0, right: 0 });
   const [isVoiceMode, setIsVoiceMode] = useState(false);
   const [isVoiceConnected, setIsVoiceConnected] = useState(false);
   const [isListening, setIsListening] = useState(false);
@@ -50,12 +57,29 @@ const EnhancedChatInput = ({
   
   const textareaRef = useRef(null);
   const fileInputRef = useRef(null);
+  const attachButtonRef = useRef(null);
+  const infoButtonRef = useRef(null);
   const wsRef = useRef(null);
   const recognitionRef = useRef(null);
   const audioContextRef = useRef(null);
   const analyserRef = useRef(null);
   const microphoneRef = useRef(null);
   const animationFrameRef = useRef(null);
+
+  // Close dropdowns when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (showFileSelector && !event.target.closest('.file-selector-dropdown') && !event.target.closest('[data-attach-button]')) {
+        setShowFileSelector(false);
+      }
+      if (showInfoTooltip && !event.target.closest('[data-info-button]')) {
+        setShowInfoTooltip(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showFileSelector, showInfoTooltip]);
 
   // Auto-resize textarea
   useEffect(() => {
@@ -355,7 +379,45 @@ const EnhancedChatInput = ({
   };
 
   const handleFileSelectClick = () => {
-    fileInputRef.current?.click();
+    if (attachButtonRef.current) {
+      const rect = attachButtonRef.current.getBoundingClientRect();
+      const dropdownHeight = 280; // Approximate height of dropdown
+      let top = rect.top - 8; // Position above the button with some margin
+      
+      // Check if dropdown would go above viewport
+      if (top - dropdownHeight < 0) {
+        top = rect.bottom + 8; // Position below the button instead
+      }
+      
+      setDropdownPosition({
+        top: top,
+        left: Math.max(8, Math.min(rect.left, window.innerWidth - 264 - 8)) // Keep within viewport width
+      });
+    }
+    setShowFileSelector(true);
+  };
+
+  const handleInfoHover = (show) => {
+    if (show && infoButtonRef.current) {
+      const rect = infoButtonRef.current.getBoundingClientRect();
+      const tooltipHeight = 200; // Approximate height of tooltip
+      let top = rect.top - 8; // Position above the button
+      
+      // Check if tooltip would go above viewport
+      if (top - tooltipHeight < 0) {
+        top = rect.bottom + 8; // Position below the button instead
+      }
+      
+      setTooltipPosition({
+        top: top,
+        right: Math.max(8, window.innerWidth - rect.right)
+      });
+    }
+    setShowInfoTooltip(show);
+  };
+
+  const handleKnowledgeNestClick = () => {
+    setShowKnowledgeNestSelector(true);
   };
 
   const handleFileChange = (e) => {
@@ -363,7 +425,28 @@ const EnhancedChatInput = ({
     if (file) {
       setSelectedFile(file);
       onFileSelect && onFileSelect(file);
+      setShowFileSelector(false);
     }
+  };
+
+  const handleKnowledgeNestFileSelect = (file) => {
+    // Convert Knowledge Nest file to a format similar to File object
+    const knowledgeNestFile = {
+      name: file.filename,
+      size: file.size,
+      type: file.mimetype,
+      lastModified: file.upload_timestamp,
+      // Add Knowledge Nest specific properties
+      isKnowledgeNestFile: true,
+      fileId: file._id,
+      fileUrl: file.url,
+      subject: file.subject,
+      uploadedBy: file.uploaded_username
+    };
+    
+    setSelectedFile(knowledgeNestFile);
+    onFileSelect && onFileSelect(knowledgeNestFile);
+    setShowKnowledgeNestSelector(false);
   };
 
   // Get voice status colors
@@ -411,7 +494,7 @@ const EnhancedChatInput = ({
         ? 'bg-gradient-to-t from-gray-950 via-gray-950/95 to-transparent border-gray-800/50' 
         : 'bg-gradient-to-t from-gray-50 via-gray-50/95 to-transparent border-gray-200/50'
     } ${
-      isMobile && sidebarOpen ? 'z-30' : 'z-40'
+      isMobile && sidebarOpen ? 'z-30' : 'z-50'
     }`}>
       <div 
         className={`transition-all duration-300 ease-out ${
@@ -499,11 +582,15 @@ const EnhancedChatInput = ({
             } shadow-sm`}>
               <div className="flex items-center gap-3">
                 <div className={`p-2 rounded-lg ${
-                  selectedFile.type.startsWith('image/') 
+                  selectedFile.type?.startsWith('image/') 
                     ? 'bg-green-100 dark:bg-green-900/30' 
-                    : 'bg-blue-100 dark:bg-blue-900/30'
+                    : selectedFile.isKnowledgeNestFile
+                      ? 'bg-purple-100 dark:bg-purple-900/30'
+                      : 'bg-blue-100 dark:bg-blue-900/30'
                 }`}>
-                  {selectedFile.type.startsWith('image/') ? (
+                  {selectedFile.isKnowledgeNestFile ? (
+                    <BookOpen className="w-4 h-4 text-purple-600 dark:text-purple-400" />
+                  ) : selectedFile.type?.startsWith('image/') ? (
                     <Image className="w-4 h-4 text-green-600 dark:text-green-400" />
                   ) : (
                     <FileText className="w-4 h-4 text-blue-600 dark:text-blue-400" />
@@ -514,8 +601,16 @@ const EnhancedChatInput = ({
                   <div className={`text-sm font-medium truncate ${isDark ? 'text-gray-200' : 'text-gray-800'}`}>
                     {selectedFile.name}
                   </div>
-                  <div className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-                    {(selectedFile.size / 1024).toFixed(1)} KB • {selectedFile.type || 'Unknown type'}
+                  <div className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'} space-y-1`}>
+                    <div>
+                      {(selectedFile.size / 1024).toFixed(1)} KB • {selectedFile.type || 'Unknown type'}
+                    </div>
+                    {selectedFile.isKnowledgeNestFile && (
+                      <div className="flex items-center gap-2 text-purple-600 dark:text-purple-400">
+                        <BookOpen className="w-3 h-3" />
+                        <span>From Knowledge Nest • {selectedFile.subject}</span>
+                      </div>
+                    )}
                   </div>
                 </div>
                 
@@ -824,10 +919,12 @@ const EnhancedChatInput = ({
                     </button>
                     
                     {/* Info Icon */}
-                    <div className="relative">
+                    <div className="relative info-tooltip-container">
                       <button
-                        onMouseEnter={() => setShowInfoTooltip(true)}
-                        onMouseLeave={() => setShowInfoTooltip(false)}
+                        ref={infoButtonRef}
+                        data-info-button
+                        onMouseEnter={() => handleInfoHover(true)}
+                        onMouseLeave={() => handleInfoHover(false)}
                         className={`p-1 rounded-full transition-colors ${
                           isDark 
                             ? 'text-gray-500 hover:text-gray-400 hover:bg-gray-700/50' 
@@ -837,44 +934,6 @@ const EnhancedChatInput = ({
                       >
                         <Info className="w-3 h-3 sm:w-4 sm:h-4" />
                       </button>
-                      
-                      {/* Tooltip */}
-                      {showInfoTooltip && (
-                        <div className={`absolute bottom-full right-0 mb-2 w-72 sm:w-80 p-3 rounded-lg shadow-lg border z-50 ${
-                          isDark 
-                            ? 'bg-gray-800 border-gray-700 text-gray-200' 
-                            : 'bg-white border-gray-200 text-gray-800'
-                        }`}>
-                          <div className="space-y-2">
-                            <div className="flex items-start gap-2">
-                              <AlertTriangle className="w-4 h-4 text-amber-500 mt-0.5 flex-shrink-0" />
-                              <div>
-                                <p className="text-sm font-medium">Important Notice</p>
-                                <p className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
-                                  StudyBuddy can make mistakes. Consider checking important information.
-                                </p>
-                              </div>
-                            </div>
-                            
-                            {multiAgentMode && (
-                              <div className={`flex items-start gap-2 pt-2 border-t ${isDark ? 'border-gray-700' : 'border-gray-200'}`}>
-                                <Zap className="w-4 h-4 text-blue-500 mt-0.5 flex-shrink-0" />
-                                <div>
-                                  <p className={`text-sm font-medium ${isDark ? 'text-blue-400' : 'text-blue-600'}`}>Multi-Agent Mode Active</p>
-                                  <p className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
-                                    Using specialized AI agents for enhanced responses. Your queries are routed to the most appropriate agent.
-                                  </p>
-                                </div>
-                              </div>
-                            )}
-                          </div>
-                          
-                          {/* Tooltip arrow */}
-                          <div className={`absolute top-full right-4 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent ${
-                            isDark ? 'border-t-gray-800' : 'border-t-white'
-                          }`}></div>
-                        </div>
-                      )}
                     </div>
                   </div>
                 )}
@@ -956,19 +1015,23 @@ const EnhancedChatInput = ({
                   </>
                 ) : (
                   <>
-                    {/* File Upload Button */}
-                    <button
-                      onClick={handleFileSelectClick}
-                      className={`p-2 sm:p-3 rounded-xl transition-all duration-200 ${
-                        isDark 
-                          ? 'text-gray-400 hover:text-gray-200 hover:bg-gray-800/70' 
-                          : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100/70'
-                      } disabled:opacity-50 disabled:cursor-not-allowed`}
-                      disabled={isLoading}
-                      title="Attach file"
-                    >
-                      <Paperclip className="w-4 h-4 sm:w-5 sm:h-5" />
-                    </button>
+                    {/* File Upload Button with Dropdown */}
+                    <div className="relative">
+                      <button
+                        ref={attachButtonRef}
+                        data-attach-button
+                        onClick={handleFileSelectClick}
+                        className={`p-2 sm:p-3 rounded-xl transition-all duration-200 ${
+                          isDark 
+                            ? 'text-gray-400 hover:text-gray-200 hover:bg-gray-800/70' 
+                            : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100/70'
+                        } disabled:opacity-50 disabled:cursor-not-allowed`}
+                        disabled={isLoading}
+                        title="Attach file"
+                      >
+                        <Paperclip className="w-4 h-4 sm:w-5 sm:h-5" />
+                      </button>
+                    </div>
                     
                     {/* Send Button */}
                     <button
@@ -1048,6 +1111,160 @@ const EnhancedChatInput = ({
           mask-composite: exclude;
         }
       `}</style>
+
+      {/* Portal-based Knowledge Nest File Selector Modal */}
+      {showKnowledgeNestSelector && typeof window !== 'undefined' && createPortal(
+        <KnowledgeNestFileSelector
+          isOpen={showKnowledgeNestSelector}
+          onClose={() => setShowKnowledgeNestSelector(false)}
+          onSelectFile={handleKnowledgeNestFileSelect}
+          username={username}
+          isDark={isDark}
+          allowMultiple={false}
+        />,
+        document.body
+      )}
+
+      {/* Portal-based File Selector Dropdown */}
+      {showFileSelector && typeof window !== 'undefined' && createPortal(
+        <div 
+          className="file-selector-dropdown"
+          style={{
+            position: 'fixed',
+            top: dropdownPosition.top < 300 ? dropdownPosition.top + 50 : dropdownPosition.top - 280, // Smart positioning
+            left: dropdownPosition.left,
+            zIndex: 9999
+          }}
+        >
+          <div className={`w-64 rounded-2xl shadow-2xl border backdrop-blur-sm transform-gpu animate-in fade-in duration-200 ${
+            isDark 
+              ? 'bg-gray-900/95 border-gray-700/50' 
+              : 'bg-white/95 border-gray-200/50'
+          }`}
+          style={{
+            maxHeight: '400px',
+            overflowY: 'auto',
+            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)'
+          }}>
+            <div className="p-3">
+              <h3 className={`font-medium text-sm mb-3 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                Attach File
+              </h3>
+              <div className="space-y-2">
+                <button
+                  onClick={() => {
+                    fileInputRef.current?.click();
+                    setShowFileSelector(false);
+                  }}
+                  className={`w-full text-left p-3 rounded-xl transition-all hover:scale-105 ${
+                    isDark 
+                      ? 'hover:bg-gray-800/70 text-gray-200' 
+                      : 'hover:bg-gray-100/70 text-gray-700'
+                  } flex items-center gap-3`}
+                >
+                  <div className="p-2 bg-blue-500/20 rounded-lg">
+                    <Paperclip className="w-4 h-4 text-blue-500" />
+                  </div>
+                  <div>
+                    <div className={`font-medium text-sm ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                      From your device
+                    </div>
+                    <div className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+                      Upload files from computer
+                    </div>
+                  </div>
+                </button>
+                
+                <button
+                  onClick={handleKnowledgeNestClick}
+                  className={`w-full text-left p-3 rounded-xl transition-all hover:scale-105 ${
+                    isDark 
+                      ? 'hover:bg-gray-800/70 text-gray-200' 
+                      : 'hover:bg-gray-100/70 text-gray-700'
+                  } flex items-center gap-3`}
+                >
+                  <div className="p-2 bg-purple-500/20 rounded-lg">
+                    <BookOpen className="w-4 h-4 text-purple-500" />
+                  </div>
+                  <div>
+                    <div className={`font-medium text-sm ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                      From Knowledge Nest
+                    </div>
+                    <div className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+                      Select shared resources
+                    </div>
+                  </div>
+                </button>
+              </div>
+              
+              <button
+                onClick={() => setShowFileSelector(false)}
+                className={`absolute top-2 right-2 p-1 rounded-lg transition-all ${
+                  isDark 
+                    ? 'text-gray-400 hover:text-white hover:bg-gray-800' 
+                    : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
+                }`}
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* Portal-based Info Tooltip */}
+      {showInfoTooltip && typeof window !== 'undefined' && createPortal(
+        <div 
+          style={{
+            position: 'fixed',
+            top: tooltipPosition.top < 250 ? tooltipPosition.top + 50 : tooltipPosition.top - 200, // Smart positioning
+            right: tooltipPosition.right,
+            zIndex: 9999
+          }}
+        >
+          <div className={`w-72 sm:w-80 p-3 rounded-lg shadow-lg border transform-gpu animate-in fade-in duration-200 ${
+            isDark 
+              ? 'bg-gray-800 border-gray-700 text-gray-200' 
+              : 'bg-white border-gray-200 text-gray-800'
+          }`}
+          style={{
+            maxHeight: '300px',
+            overflowY: 'auto',
+            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.4)'
+          }}>
+            <div className="space-y-2">
+              <div className="flex items-start gap-2">
+                <AlertTriangle className="w-4 h-4 text-amber-500 mt-0.5 flex-shrink-0" />
+                <div>
+                  <p className="text-sm font-medium">Important Notice</p>
+                  <p className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+                    StudyBuddy can make mistakes. Consider checking important information.
+                  </p>
+                </div>
+              </div>
+              
+              {multiAgentMode && (
+                <div className={`flex items-start gap-2 pt-2 border-t ${isDark ? 'border-gray-700' : 'border-gray-200'}`}>
+                  <Zap className="w-4 h-4 text-blue-500 mt-0.5 flex-shrink-0" />
+                  <div>
+                    <p className={`text-sm font-medium ${isDark ? 'text-blue-400' : 'text-blue-600'}`}>Multi-Agent Mode Active</p>
+                    <p className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+                      Using specialized AI agents for enhanced responses. Your queries are routed to the most appropriate agent.
+                    </p>
+                  </div>
+                </div>
+              )}
+            </div>
+            
+            {/* Tooltip arrow */}
+            <div className={`absolute top-full right-4 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent ${
+              isDark ? 'border-t-gray-800' : 'border-t-white'
+            }`}></div>
+          </div>
+        </div>,
+        document.body
+      )}
     </div>
   );
 };

@@ -2,7 +2,7 @@
 import ProtectedRoute from "@/components/ProtectedRoute";
 import FileUploadModal from "@/components/FileUploadModal";
 import FileDisplayComponent from "@/components/FileDisplayComponent";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Upload, BookOpen, Users, FileText, Settings, Moon, Sun } from "lucide-react";
@@ -128,8 +128,37 @@ const OrgVerification = ({ user, onVerificationSuccess, isDark }) => {
   };
 
   return (
-    <div className={`min-h-screen flex items-center justify-center px-4 transition-colors duration-300 ${isDark ? 'bg-black' : 'bg-gradient-to-br from-blue-50 via-white to-purple-50'} ${isDark ? 'dark' : ''}`}>
-      <div className="max-w-md w-full">
+    <div className={`min-h-screen flex items-center justify-center px-4 pt-24 transition-colors duration-500 ${
+      isDark 
+        ? 'bg-black' 
+        : 'bg-gradient-to-br from-blue-50 via-white to-purple-50'
+    }`}>
+      {/* Dynamic background elements */}
+      <div className="fixed inset-0 overflow-hidden pointer-events-none">
+        {/* Geometric Background Elements */}
+        <div className={`absolute top-20 left-10 w-72 h-72 rounded-full blur-3xl animate-pulse ${
+          isDark 
+            ? 'bg-gradient-to-br from-blue-500/10 to-purple-500/10' 
+            : 'bg-gradient-to-br from-blue-300/20 to-purple-300/20'
+        }`}></div>
+        <div className={`absolute top-40 right-20 w-96 h-96 rounded-full blur-3xl animate-pulse animation-delay-2000 ${
+          isDark 
+            ? 'bg-gradient-to-br from-purple-500/10 to-pink-500/10' 
+            : 'bg-gradient-to-br from-purple-300/20 to-pink-300/20'
+        }`}></div>
+        <div className={`absolute bottom-20 left-20 w-80 h-80 rounded-full blur-3xl animate-pulse animation-delay-4000 ${
+          isDark 
+            ? 'bg-gradient-to-br from-pink-500/10 to-blue-500/10' 
+            : 'bg-gradient-to-br from-pink-300/20 to-blue-300/20'
+        }`}></div>
+        
+        {/* Grid pattern */}
+        <div className={`absolute inset-0 ${isDark ? 'opacity-5' : 'opacity-10'}`}>
+          <div className="grid-pattern"></div>
+        </div>
+      </div>
+
+      <div className="max-w-md w-full relative z-10">
         <div className="glass-card rounded-3xl p-8 shadow-xl" style={{ 
           background: isDark ? 'rgba(255, 255, 255, 0.05)' : 'rgba(255, 255, 255, 0.5)',
           backdropFilter: 'blur(40px) saturate(200%)',
@@ -303,111 +332,96 @@ const OrgVerification = ({ user, onVerificationSuccess, isDark }) => {
   );
 };
 
-// Main Knowledge Nest Component
-const KnowledgeNestContent = ({ user, isDark }) => {
+// Knowledge Nest Dashboard Component
+const KnowledgeNestDashboard = ({ user, isDark }) => {
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
 
-  // Get user's organization details
-  const userOrgDetails = useQuery(api.knowledgeNest.getUserOrgDetails, {
-    username: user.username,
+  // Fetch organization details for current user
+  const userOrgDetails = useQuery(api.org.getOrgByUser, {
+    org_user: user.username,
   });
 
   const handleUploadSuccess = () => {
+    setShowUploadModal(false);
     setRefreshTrigger(prev => prev + 1);
   };
 
-  if (!userOrgDetails) {
+  if (!userOrgDetails || !userOrgDetails.success || !userOrgDetails.org) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-500"></div>
-      </div>
-    );
-  }
-
-  if (!userOrgDetails.success) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <h2 className="text-2xl font-bold text-red-600">Error</h2>
-          <p className="text-gray-600">{userOrgDetails.message}</p>
+      <div className="min-h-screen flex items-center justify-center relative z-10">
+        <div className="glass-card p-8 rounded-3xl">
+          <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-indigo-500 mx-auto"></div>
+          <p className="text-center mt-4 text-gray-700 dark:text-gray-300">Loading organization details...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className={`min-h-screen pt-16 transition-colors duration-300 ${
-      isDark ? 'bg-gray-950' : 'bg-gradient-to-br from-blue-50 via-white to-purple-50'
-    }`}>
-      <div className="max-w-7xl mx-auto px-4 py-8">
+    <div className={`min-h-screen p-6 pt-24 relative z-10`}>
+      <div className="max-w-7xl mx-auto">
         {/* Header */}
-        <div className="mb-8">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-3xl md:text-4xl font-bold bg-gradient-to-r from-blue-600 via-purple-600 to-green-600 bg-clip-text text-transparent mb-4">
-                📚 Knowledge Nest
-              </h1>
-              <p className={`${isDark ? 'text-gray-400' : 'text-gray-600'} text-lg`}>
-                Collaborative learning hub for {userOrgDetails.data.org_name}
-              </p>
-            </div>
-            
-            <button
-              onClick={() => setShowUploadModal(true)}
-              className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white px-6 py-3 rounded-xl font-medium transition-all transform hover:scale-105 shadow-lg hover:shadow-xl flex items-center gap-2"
-            >
-              <Upload className="w-5 h-5" />
-              Upload File
-            </button>
+        <div className="text-center mb-8">
+          <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-r from-indigo-500 to-blue-500 rounded-full mb-4">
+            <svg className="h-8 w-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+            </svg>
           </div>
+          <h1 className="text-4xl font-bold text-gray-900 dark:text-gray-100 mb-4">
+            📚 Knowledge Nest
+          </h1>
+          <p className="text-lg text-gray-600 dark:text-gray-400 mb-6">
+            Share and discover academic resources within your organization
+          </p>
+          <button
+            onClick={() => setShowUploadModal(true)}
+            className="bg-gradient-to-r from-indigo-500 to-blue-500 hover:from-indigo-600 hover:to-blue-600 text-white font-medium py-3 px-8 rounded-2xl transition-all transform hover:scale-105 shadow-lg hover:shadow-xl"
+          >
+            <Upload className="w-5 h-5 inline-block mr-2" />
+            Upload Resource
+          </button>
         </div>
 
-        {/* Stats Cards */}
+        {/* Organization Stats */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          <div className={`p-6 rounded-xl border ${
-            isDark ? 'bg-gray-900 border-gray-800' : 'bg-white border-gray-200'
-          } shadow-lg`}>
+          <div className="glass-card rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all hover:-translate-y-1">
             <div className="flex items-center gap-4">
-              <div className="p-3 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
+              <div className="p-3 bg-blue-100 dark:bg-blue-900/30 rounded-xl">
                 <FileText className="w-6 h-6 text-blue-600" />
               </div>
               <div>
-                <h3 className="font-semibold text-lg">Organization</h3>
-                <p className={`${isDark ? 'text-gray-400' : 'text-gray-600'} text-sm`}>
-                  {userOrgDetails.data.org_name}
+                <h3 className="font-semibold text-lg text-gray-900 dark:text-gray-100">Organization</h3>
+                <p className="text-gray-600 dark:text-gray-400 text-sm">
+                  {userOrgDetails?.org?.org_name || 'Loading...'}
                 </p>
               </div>
             </div>
           </div>
 
-          <div className={`p-6 rounded-xl border ${
-            isDark ? 'bg-gray-900 border-gray-800' : 'bg-white border-gray-200'
-          } shadow-lg`}>
+          <div className="glass-card rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all hover:-translate-y-1">
             <div className="flex items-center gap-4">
-              <div className="p-3 bg-green-100 dark:bg-green-900/30 rounded-lg">
+              <div className="p-3 bg-green-100 dark:bg-green-900/30 rounded-xl">
                 <Users className="w-6 h-6 text-green-600" />
               </div>
               <div>
-                <h3 className="font-semibold text-lg">Class</h3>
-                <p className={`${isDark ? 'text-gray-400' : 'text-gray-600'} text-sm`}>
-                  {userOrgDetails.data.class_sec}
+                <h3 className="font-semibold text-lg text-gray-900 dark:text-gray-100">Class</h3>
+                <p className="text-gray-600 dark:text-gray-400 text-sm">
+                  {userOrgDetails?.org?.class_sec || 'Loading...'}
                 </p>
               </div>
             </div>
           </div>
 
-          <div className={`p-6 rounded-xl border ${
-            isDark ? 'bg-gray-900 border-gray-800' : 'bg-white border-gray-200'
-          } shadow-lg`}>
+          <div className="glass-card rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all hover:-translate-y-1">
             <div className="flex items-center gap-4">
-              <div className="p-3 bg-purple-100 dark:bg-purple-900/30 rounded-lg">
+              <div className="p-3 bg-purple-100 dark:bg-purple-900/30 rounded-xl">
                 <BookOpen className="w-6 h-6 text-purple-600" />
               </div>
               <div>
-                <h3 className="font-semibold text-lg">Branch</h3>
-                <p className={`${isDark ? 'text-gray-400' : 'text-gray-600'} text-sm`}>
-                  {userOrgDetails.data.branch}
+                <h3 className="font-semibold text-lg text-gray-900 dark:text-gray-100">Branch</h3>
+                <p className="text-gray-600 dark:text-gray-400 text-sm">
+                  {userOrgDetails?.org?.branch || 'Loading...'}
                 </p>
               </div>
             </div>
@@ -415,12 +429,10 @@ const KnowledgeNestContent = ({ user, isDark }) => {
         </div>
 
         {/* Files Section */}
-        <div className={`rounded-xl border ${
-          isDark ? 'bg-gray-900 border-gray-800' : 'bg-white border-gray-200'
-        } shadow-lg p-6`}>
+        <div className="glass-card rounded-2xl shadow-lg p-6">
           <div className="mb-6">
-            <h2 className="text-2xl font-bold mb-2">Shared Resources</h2>
-            <p className={`${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-2">Shared Resources</h2>
+            <p className="text-gray-600 dark:text-gray-400">
               Files shared within your organization and class
             </p>
           </div>
@@ -437,7 +449,7 @@ const KnowledgeNestContent = ({ user, isDark }) => {
       <FileUploadModal
         isOpen={showUploadModal}
         onClose={() => setShowUploadModal(false)}
-        userOrgDetails={userOrgDetails.data}
+        userOrgDetails={userOrgDetails?.org}
         onUploadSuccess={handleUploadSuccess}
         isDark={isDark}
       />
@@ -450,6 +462,8 @@ export default function KnowledgeNestPage() {
   const [isDark, setIsDark] = useState(false);
   const [user, setUser] = useState(null);
   const [isOrgVerified, setIsOrgVerified] = useState(undefined);
+  const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
+  const particlesContainer = useRef(null);
 
   // Get current user data from register table
   const userQuery = useQuery(api.auth.getCurrentUser);
@@ -459,11 +473,7 @@ export default function KnowledgeNestPage() {
   );
 
   useEffect(() => {
-    // Get theme from localStorage
-    const savedTheme = localStorage.getItem('theme');
-    setIsDark(savedTheme === 'dark');
-
-    // Get user from localStorage
+    // Initialize user data
     const storedUser = localStorage.getItem('user');
     if (storedUser) {
       try {
@@ -473,7 +483,81 @@ export default function KnowledgeNestPage() {
         console.error('Error parsing user data:', error);
       }
     }
-  }, []);
+
+    // Initialize theme based on localStorage or system preference
+    const savedTheme = localStorage.getItem("theme");
+    const systemDarkMode = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    const initialDarkMode = savedTheme ? savedTheme === "dark" : systemDarkMode;
+    setIsDark(initialDarkMode);
+    document.documentElement.classList.toggle('dark', initialDarkMode);
+
+    // Listen for theme changes
+    const handleThemeChange = (e) => {
+      const newDarkMode = e.detail.isDark;
+      setIsDark(newDarkMode);
+      document.documentElement.classList.toggle('dark', newDarkMode);
+    };
+
+    // Handle mouse movement for dynamic background
+    const handleMouseMove = (e) => {
+      setMousePosition({ x: e.clientX, y: e.clientY });
+    };
+
+    // Create floating particles animation
+    const createParticles = () => {
+      let cleanup = () => {};
+
+      if (particlesContainer.current) {
+        const particles = [];
+        const particleCount = 40;
+        
+        for (let i = 0; i < particleCount; i++) {
+          const particle = document.createElement('div');
+          particle.className = 'floating-particle';
+          const colors = isDark 
+            ? ['59, 130, 246', '168, 85, 247', '236, 72, 153']
+            : ['37, 99, 235', '147, 51, 234', '219, 39, 119'];
+          
+          const size = Math.random() * 6 + 2;
+          particle.style.cssText = `
+            position: absolute;
+            width: ${size}px;
+            height: ${size}px;
+            background: rgba(${colors[Math.floor(Math.random() * colors.length)]}, ${Math.random() * 0.5 + 0.3});
+            border-radius: 50%;
+            left: ${Math.random() * 100}%;
+            top: ${Math.random() * 100}%;
+            filter: blur(1px);
+            animation: floatParticle ${Math.random() * 25 + 15}s linear infinite;
+            animation-delay: -${Math.random() * 20}s;
+          `;
+          particlesContainer.current.appendChild(particle);
+          particles.push(particle);
+        }
+        
+        cleanup = () => {
+          particles.forEach(particle => {
+            if (particle.parentNode) {
+              particle.parentNode.removeChild(particle);
+            }
+          });
+        };
+      }
+
+      return cleanup;
+    };
+
+    window.addEventListener('themeChanged', handleThemeChange);
+    window.addEventListener("mousemove", handleMouseMove);
+
+    const cleanupParticles = createParticles();
+
+    return () => {
+      window.removeEventListener('themeChanged', handleThemeChange);
+      window.removeEventListener("mousemove", handleMouseMove);
+      cleanupParticles();
+    };
+  }, [isDark]);
 
   useEffect(() => {
     if (orgQuery !== undefined) {
@@ -494,30 +578,60 @@ export default function KnowledgeNestPage() {
     const newTheme = !isDark;
     setIsDark(newTheme);
     localStorage.setItem('theme', newTheme ? 'dark' : 'light');
+    document.documentElement.classList.toggle('dark', newTheme);
+    
+    // Dispatch custom event for theme change
+    window.dispatchEvent(new CustomEvent('themeChanged', { detail: { isDark: newTheme } }));
   };
 
-  // Theme toggle button (top-right)
-  const ThemeToggle = () => (
-    <button
-      onClick={toggleTheme}
-      className={`fixed top-4 right-4 z-50 p-3 rounded-full transition-all duration-300 ${
-        isDark 
-          ? 'bg-gray-800 hover:bg-gray-700 text-yellow-400' 
-          : 'bg-white hover:bg-gray-100 text-gray-600'
-      } shadow-lg hover:shadow-xl transform hover:scale-110`}
-    >
-      {isDark ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
-    </button>
-  );
+  
 
   if (!user) {
     return (
-      <div className={`min-h-screen flex items-center justify-center ${isDark ? 'bg-gray-900' : 'bg-gray-50'}`}>
-        <ThemeToggle />
-        <div className="text-center">
-          <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
-            Please log in to access Knowledge Nest
-          </h2>
+      <div className={`min-h-screen transition-colors duration-500 ${
+        isDark 
+          ? 'bg-black' 
+          : 'bg-gradient-to-br from-blue-50 via-white to-purple-50'
+      }`}>
+        {/* Background Elements */}
+        <div className="fixed inset-0 overflow-hidden pointer-events-none">
+          <div ref={particlesContainer} className="absolute inset-0"></div>
+          <div 
+            className="absolute inset-0 opacity-30 transition-all duration-1000"
+            style={{
+              background: `radial-gradient(600px circle at ${mousePosition.x}px ${mousePosition.y}px, rgba(59, 130, 246, 0.15), transparent 40%)`
+            }}
+          />
+          {/* Geometric Background Elements */}
+          <div className={`absolute top-20 left-10 w-72 h-72 rounded-full blur-3xl animate-pulse ${
+            isDark 
+              ? 'bg-gradient-to-br from-blue-500/10 to-purple-500/10' 
+              : 'bg-gradient-to-br from-blue-300/20 to-purple-300/20'
+          }`}></div>
+          <div className={`absolute top-40 right-20 w-96 h-96 rounded-full blur-3xl animate-pulse animation-delay-2000 ${
+            isDark 
+              ? 'bg-gradient-to-br from-purple-500/10 to-pink-500/10' 
+              : 'bg-gradient-to-br from-purple-300/20 to-pink-300/20'
+          }`}></div>
+          <div className={`absolute bottom-20 left-20 w-80 h-80 rounded-full blur-3xl animate-pulse animation-delay-4000 ${
+            isDark 
+              ? 'bg-gradient-to-br from-pink-500/10 to-blue-500/10' 
+              : 'bg-gradient-to-br from-pink-300/20 to-blue-300/20'
+          }`}></div>
+          
+          {/* Grid pattern overlay */}
+          <div className={`absolute inset-0 ${isDark ? 'opacity-5' : 'opacity-10'}`}>
+            <div className="grid-pattern"></div>
+          </div>
+        </div>
+
+
+        <div className="min-h-screen flex items-center justify-center relative z-10 pt-24">
+          <div className="text-center glass-card p-8 rounded-3xl">
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
+              Please log in to access Knowledge Nest
+            </h2>
+          </div>
         </div>
       </div>
     );
@@ -527,7 +641,18 @@ export default function KnowledgeNestPage() {
   if (isOrgVerified === false) {
     return (
       <ProtectedRoute>
-        <ThemeToggle />
+        {/* Background Elements */}
+        <div className="fixed inset-0 overflow-hidden pointer-events-none">
+          <div ref={particlesContainer} className="absolute inset-0"></div>
+          <div 
+            className="absolute inset-0 opacity-30 transition-all duration-1000"
+            style={{
+              background: `radial-gradient(600px circle at ${mousePosition.x}px ${mousePosition.y}px, rgba(59, 130, 246, 0.15), transparent 40%)`
+            }}
+          />
+        </div>
+        
+
         <OrgVerification user={user} onVerificationSuccess={handleVerificationSuccess} isDark={isDark} />
       </ProtectedRoute>
     );
@@ -537,19 +662,150 @@ export default function KnowledgeNestPage() {
   if (isOrgVerified === undefined) {
     return (
       <ProtectedRoute>
-        <ThemeToggle />
-        <div className={`min-h-screen flex items-center justify-center ${isDark ? 'bg-gray-900' : 'bg-gray-50'}`}>
-          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-indigo-500"></div>
+        <div className={`min-h-screen transition-colors duration-500 ${
+          isDark 
+            ? 'bg-black' 
+            : 'bg-gradient-to-br from-blue-50 via-white to-purple-50'
+        }`}>
+          {/* Background Elements */}
+          <div className="fixed inset-0 overflow-hidden pointer-events-none">
+            <div ref={particlesContainer} className="absolute inset-0"></div>
+            <div 
+              className="absolute inset-0 opacity-30 transition-all duration-1000"
+              style={{
+                background: `radial-gradient(600px circle at ${mousePosition.x}px ${mousePosition.y}px, rgba(59, 130, 246, 0.15), transparent 40%)`
+              }}
+            />
+            {/* Geometric Background Elements */}
+            <div className={`absolute top-20 left-10 w-72 h-72 rounded-full blur-3xl animate-pulse ${
+              isDark 
+                ? 'bg-gradient-to-br from-blue-500/10 to-purple-500/10' 
+                : 'bg-gradient-to-br from-blue-300/20 to-purple-300/20'
+            }`}></div>
+            <div className={`absolute top-40 right-20 w-96 h-96 rounded-full blur-3xl animate-pulse animation-delay-2000 ${
+              isDark 
+                ? 'bg-gradient-to-br from-purple-500/10 to-pink-500/10' 
+                : 'bg-gradient-to-br from-purple-300/20 to-pink-300/20'
+            }`}></div>
+            <div className={`absolute bottom-20 left-20 w-80 h-80 rounded-full blur-3xl animate-pulse animation-delay-4000 ${
+              isDark 
+                ? 'bg-gradient-to-br from-pink-500/10 to-blue-500/10' 
+                : 'bg-gradient-to-br from-pink-300/20 to-blue-300/20'
+            }`}></div>
+            
+            {/* Grid pattern overlay */}
+            <div className={`absolute inset-0 ${isDark ? 'opacity-5' : 'opacity-10'}`}>
+              <div className="grid-pattern"></div>
+            </div>
+          </div>
+
+
+          <div className="min-h-screen flex items-center justify-center relative z-10 pt-24">
+            <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-indigo-500"></div>
+          </div>
         </div>
       </ProtectedRoute>
     );
   }
 
-  // Show main Knowledge Nest content if verified
+  // Main Knowledge Nest Interface - Show Dashboard
   return (
     <ProtectedRoute>
-      <ThemeToggle />
-      <KnowledgeNestContent user={user} isDark={isDark} />
+      <div className={`min-h-screen transition-colors duration-500 ${
+        isDark 
+          ? 'bg-black' 
+          : 'bg-gradient-to-br from-blue-50 via-white to-purple-50'
+      }`}>
+        {/* Dynamic Background */}
+        <div className="fixed inset-0 overflow-hidden pointer-events-none">
+          {/* Animated particles */}
+          <div ref={particlesContainer} className="absolute inset-0"></div>
+          
+          {/* Dynamic gradient following mouse */}
+          <div 
+            className="absolute inset-0 opacity-30 transition-all duration-1000"
+            style={{
+              background: `radial-gradient(600px circle at ${mousePosition.x}px ${mousePosition.y}px, rgba(59, 130, 246, 0.15), transparent 40%)`
+            }}
+          />
+          
+          {/* Geometric Background Elements */}
+          <div className={`absolute top-20 left-10 w-72 h-72 rounded-full blur-3xl animate-pulse ${
+            isDark 
+              ? 'bg-gradient-to-br from-blue-500/10 to-purple-500/10' 
+              : 'bg-gradient-to-br from-blue-300/20 to-purple-300/20'
+          }`}></div>
+          <div className={`absolute top-40 right-20 w-96 h-96 rounded-full blur-3xl animate-pulse animation-delay-2000 ${
+            isDark 
+              ? 'bg-gradient-to-br from-purple-500/10 to-pink-500/10' 
+              : 'bg-gradient-to-br from-purple-300/20 to-pink-300/20'
+          }`}></div>
+          <div className={`absolute bottom-20 left-20 w-80 h-80 rounded-full blur-3xl animate-pulse animation-delay-4000 ${
+            isDark 
+              ? 'bg-gradient-to-br from-pink-500/10 to-blue-500/10' 
+              : 'bg-gradient-to-br from-pink-300/20 to-blue-300/20'
+          }`}></div>
+          
+          {/* Grid pattern overlay */}
+          <div className={`absolute inset-0 ${isDark ? 'opacity-5' : 'opacity-10'}`}>
+            <div className="grid-pattern"></div>
+          </div>
+          
+          {/* Gradient overlays for depth */}
+          <div className="absolute inset-0 bg-gradient-to-br from-blue-600/10 via-purple-600/10 to-indigo-600/10 dark:from-blue-900/20 dark:via-purple-900/20 dark:to-indigo-900/20"></div>
+        </div>
+
+    
+        <KnowledgeNestDashboard user={user} isDark={isDark} />
+
+        {/* Custom Styles */}
+        <style jsx>{`
+          @keyframes floatParticle {
+            0% {
+              transform: translateY(100vh) translateX(-10px);
+              opacity: 0;
+            }
+            10% {
+              opacity: 1;
+            }
+            90% {
+              opacity: 1;
+            }
+            100% {
+              transform: translateY(-10vh) translateX(10px);
+              opacity: 0;
+            }
+          }
+
+          .animation-delay-2000 {
+            animation-delay: 2s;
+          }
+
+          .animation-delay-4000 {
+            animation-delay: 4s;
+          }
+
+          .grid-pattern {
+            width: 100%;
+            height: 100%;
+            background-image: 
+              linear-gradient(rgba(255,255,255,0.05) 1px, transparent 1px),
+              linear-gradient(90deg, rgba(255,255,255,0.05) 1px, transparent 1px);
+            background-size: 40px 40px;
+          }
+
+          .glass-card {
+            background: ${isDark ? 'rgba(255, 255, 255, 0.05)' : 'rgba(255, 255, 255, 0.5)'};
+            backdrop-filter: blur(40px) saturate(200%);
+            -webkit-backdrop-filter: blur(40px) saturate(200%);
+            border: 1px solid ${isDark ? 'rgba(255, 255, 255, 0.18)' : 'rgba(255, 255, 255, 0.3)'};
+            box-shadow: 
+              0 8px 32px ${isDark ? 'rgba(0, 0, 0, 0.37)' : 'rgba(31, 38, 135, 0.37)'},
+              inset 0 1px 0 rgba(255, 255, 255, 0.1),
+              inset 0 -1px 0 rgba(0, 0, 0, 0.1);
+          }
+        `}</style>
+      </div>
     </ProtectedRoute>
   );
 }

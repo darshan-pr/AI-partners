@@ -1,6 +1,23 @@
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
 
+// Utility function to sanitize content for safe storage and JSON processing
+function sanitizeContent(content) {
+  if (!content || typeof content !== 'string') return '';
+  
+  return content
+    .replace(/\\/g, '\\\\')   // Escape backslashes
+    .replace(/"/g, '\\"')     // Escape quotes
+    .replace(/\n/g, '\\n')    // Escape newlines
+    .replace(/\r/g, '\\r')    // Escape carriage returns
+    .replace(/\t/g, '\\t')    // Escape tabs
+    .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '') // Remove control characters
+    .replace(/[\u0080-\uFFFF]/g, function(match) {
+      // Convert non-ASCII characters to unicode escape sequences
+      return '\\u' + ('0000' + match.charCodeAt(0).toString(16)).slice(-4);
+    });
+}
+
 // Create a new chat session
 export const createSession = mutation({
   args: {
@@ -129,12 +146,15 @@ export const addMessage = mutation({
   handler: async (ctx, { sessionId, username, role, content, messageType, metadata }) => {
     const timestamp = Date.now();
     
+    // Sanitize content to prevent JSON parsing issues
+    const sanitizedContent = sanitizeContent(content);
+    
     // Add message
     const messageId = await ctx.db.insert("chat_messages", {
       sessionId,
       username,
       role,
-      content,
+      content: sanitizedContent,
       timestamp,
       messageType: messageType || "text",
       metadata
@@ -149,7 +169,7 @@ export const addMessage = mutation({
     
     if (session) {
       const messageCount = (session.messageCount || 0) + 1;
-      const lastMessage = content.length > 50 ? content.substring(0, 50) + "..." : content;
+      const lastMessage = sanitizedContent.length > 50 ? sanitizedContent.substring(0, 50) + "..." : sanitizedContent;
       
       await ctx.db.patch(session._id, {
         updatedAt: timestamp,
@@ -301,9 +321,12 @@ export const updateMessage = mutation({
       throw new Error("Can only edit user messages");
     }
 
+    // Sanitize content before updating
+    const sanitizedContent = sanitizeContent(newContent.trim());
+
     // Update the message content
     await ctx.db.patch(messageId, {
-      content: newContent.trim()
+      content: sanitizedContent
     });
 
     return { success: true };

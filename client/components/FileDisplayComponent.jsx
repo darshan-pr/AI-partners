@@ -157,11 +157,11 @@ const FileDisplayComponent = ({
   return (
     <div className="space-y-6">
       {/* Organization Info */}
-      {filesData.orgInfo && (
-        <div className={`p-4 rounded-lg ${isDark ? 'bg-gray-800' : 'bg-gray-50'}`}>
-          <h3 className="font-semibold mb-2">📚 Knowledge Nest - {filesData.orgInfo.org_name}</h3>
-          <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
-            Class: {filesData.orgInfo.class_sec} • Branch: {filesData.orgInfo.branch}
+      {filesData?.orgInfo && (
+        <div className="glass-card rounded-2xl p-6">
+          <h3 className="font-semibold text-lg text-gray-900 dark:text-gray-100 mb-2">📚 Knowledge Nest - {filesData.orgInfo?.org_name || 'Organization'}</h3>
+          <p className="text-gray-600 dark:text-gray-400">
+            Class: {filesData.orgInfo?.class_sec || 'N/A'} • Branch: {filesData.orgInfo?.branch || 'N/A'}
           </p>
         </div>
       )}
@@ -176,11 +176,7 @@ const FileDisplayComponent = ({
             placeholder="Search files..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className={`w-full pl-10 pr-4 py-2 rounded-lg border transition-colors ${
-              isDark
-                ? 'bg-gray-800 border-gray-600 focus:border-blue-500'
-                : 'bg-white border-gray-300 focus:border-blue-500'
-            } focus:outline-none focus:ring-2 focus:ring-blue-500/20`}
+            className="w-full pl-10 pr-4 py-3 rounded-2xl glass-card border-0 focus:outline-none focus:ring-2 focus:ring-blue-500/50 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400"
           />
         </div>
 
@@ -189,41 +185,33 @@ const FileDisplayComponent = ({
           {/* Filter Toggle */}
           <button
             onClick={() => setShowFilters(!showFilters)}
-            className={`p-2 rounded-lg transition-colors ${
+            className={`p-3 rounded-2xl transition-all glass-card ${
               showFilters
-                ? 'bg-blue-500 text-white'
-                : isDark
-                ? 'bg-gray-700 hover:bg-gray-600'
-                : 'bg-gray-200 hover:bg-gray-300'
+                ? 'ring-2 ring-blue-500/50 text-blue-600 dark:text-blue-400'
+                : 'text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200'
             }`}
           >
             <Filter className="w-4 h-4" />
           </button>
 
           {/* View Mode */}
-          <div className={`flex rounded-lg overflow-hidden border ${
-            isDark ? 'border-gray-600' : 'border-gray-300'
-          }`}>
+          <div className="flex rounded-2xl overflow-hidden glass-card">
             <button
               onClick={() => setViewMode('grid')}
-              className={`p-2 transition-colors ${
+              className={`p-3 transition-all ${
                 viewMode === 'grid'
-                  ? 'bg-blue-500 text-white'
-                  : isDark
-                  ? 'bg-gray-700 hover:bg-gray-600'
-                  : 'bg-gray-200 hover:bg-gray-300'
+                  ? 'bg-blue-500/20 text-blue-600 dark:text-blue-400'
+                  : 'text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200'
               }`}
             >
               <Grid className="w-4 h-4" />
             </button>
             <button
               onClick={() => setViewMode('list')}
-              className={`p-2 transition-colors ${
+              className={`p-3 transition-all ${
                 viewMode === 'list'
-                  ? 'bg-blue-500 text-white'
-                  : isDark
-                  ? 'bg-gray-700 hover:bg-gray-600'
-                  : 'bg-gray-200 hover:bg-gray-300'
+                  ? 'bg-blue-500/20 text-blue-600 dark:text-blue-400'
+                  : 'text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200'
               }`}
             >
               <List className="w-4 h-4" />
@@ -234,18 +222,14 @@ const FileDisplayComponent = ({
 
       {/* Filters */}
       {showFilters && (
-        <div className={`p-4 rounded-lg border ${isDark ? 'bg-gray-800 border-gray-700' : 'bg-gray-50 border-gray-200'}`}>
+        <div className="glass-card rounded-2xl p-6">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             <div>
-              <label className="block text-sm font-medium mb-2">Filter by Subject</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Filter by Subject</label>
               <select
                 value={filterSubject}
                 onChange={(e) => setFilterSubject(e.target.value)}
-                className={`w-full p-2 rounded-lg border transition-colors ${
-                  isDark
-                    ? 'bg-gray-700 border-gray-600 focus:border-blue-500'
-                    : 'bg-white border-gray-300 focus:border-blue-500'
-                } focus:outline-none focus:ring-2 focus:ring-blue-500/20`}
+                className="w-full p-3 rounded-xl glass-card border-0 focus:outline-none focus:ring-2 focus:ring-blue-500/50 text-gray-900 dark:text-gray-100"
               >
                 <option value="">All Subjects</option>
                 {subjectsData?.subjects?.map((subject) => (
@@ -260,41 +244,47 @@ const FileDisplayComponent = ({
       )}
 
       {/* Files Count */}
-      <div className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+      <div className="text-sm text-gray-600 dark:text-gray-400">
         {filteredFiles.length} file{filteredFiles.length !== 1 ? 's' : ''} found
       </div>
 
       {/* Files Display */}
       {filteredFiles.length === 0 ? (
-        <div className="text-center py-12">
-          <File className={`w-16 h-16 mx-auto mb-4 ${isDark ? 'text-gray-600' : 'text-gray-400'}`} />
-          <h3 className="text-lg font-medium mb-2">No files found</h3>
-          <p className={`${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
-            {searchTerm || filterSubject 
-              ? 'Try adjusting your search or filters'
-              : 'Upload your first file to get started'
-            }
-          </p>
+        <div className="text-center py-16">
+          <div className="glass-card rounded-3xl p-12 max-w-md mx-auto">
+            <File className="w-20 h-20 mx-auto mb-6 text-gray-400 dark:text-gray-500" />
+            <h3 className="text-xl font-semibold mb-3 text-gray-700 dark:text-gray-300">No files found</h3>
+            <p className="text-gray-500 dark:text-gray-400 mb-6">
+              {searchTerm || filterSubject 
+                ? 'Try adjusting your search or filters'
+                : 'Upload your first file to get started'
+              }
+            </p>
+            {!searchTerm && !filterSubject && (
+              <div className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-blue-500/20 text-blue-700 dark:text-blue-400 text-sm">
+                <Upload className="w-4 h-4" />
+                Click "Upload Resource" to add files
+              </div>
+            )}
+          </div>
         </div>
       ) : viewMode === 'grid' ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
           {filteredFiles.map((file) => (
             <div
               key={file._id}
-              className={`p-4 rounded-lg border transition-all hover:shadow-md ${
-                isDark 
-                  ? 'bg-gray-800 border-gray-700 hover:border-gray-600' 
-                  : 'bg-white border-gray-200 hover:border-gray-300'
-              } ${onFileSelect ? 'cursor-pointer hover:bg-blue-50 dark:hover:bg-blue-900/20' : ''}`}
+              className={`glass-card rounded-2xl p-4 transition-all hover:shadow-lg hover:-translate-y-1 hover:scale-[1.02] ${
+                onFileSelect ? 'cursor-pointer hover:ring-2 hover:ring-blue-500/50' : ''
+              }`}
               onClick={() => onFileSelect && onFileSelect(file)}
             >
               <div className="flex items-center gap-3 mb-3">
                 {getFileIcon(file.file_type)}
                 <div className="flex-1 min-w-0">
-                  <p className="font-medium truncate" title={file.filename}>
+                  <p className="font-medium truncate text-gray-900 dark:text-gray-100" title={file.filename}>
                     {file.filename}
                   </p>
-                  <p className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">
                     {formatFileSize(file.file_size)}
                   </p>
                 </div>
@@ -303,22 +293,20 @@ const FileDisplayComponent = ({
               <div className="space-y-2 text-sm">
                 <div className="flex items-center gap-2">
                   <BookOpen className="w-4 h-4 text-blue-500" />
-                  <span className="truncate">{file.subject}</span>
+                  <span className="truncate text-gray-700 dark:text-gray-300">{file.subject}</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <User className="w-4 h-4 text-green-500" />
-                  <span className="truncate">{file.uploaded_username}</span>
+                  <span className="truncate text-gray-700 dark:text-gray-300">{file.uploaded_username}</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <Calendar className="w-4 h-4 text-purple-500" />
-                  <span className="text-xs">{formatDate(file.upload_date)}</span>
+                  <span className="text-xs text-gray-500 dark:text-gray-400">{formatDate(file.upload_date)}</span>
                 </div>
               </div>
 
               {file.description && (
-                <p className={`text-xs mt-2 p-2 rounded ${
-                  isDark ? 'bg-gray-700' : 'bg-gray-50'
-                } line-clamp-2`}>
+                <p className="text-xs mt-2 p-2 rounded-lg glass-card text-gray-600 dark:text-gray-400 line-clamp-2">
                   {file.description}
                 </p>
               )}
@@ -327,22 +315,14 @@ const FileDisplayComponent = ({
                 <div className="flex items-center gap-2 mt-4">
                   <button
                     onClick={() => handlePreview(file)}
-                    className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-xs transition-colors ${
-                      isDark
-                        ? 'bg-green-600 hover:bg-green-700 text-white'
-                        : 'bg-green-500 hover:bg-green-600 text-white'
-                    }`}
+                    className="flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-xl text-xs transition-all bg-green-500/20 hover:bg-green-500/30 text-green-700 dark:text-green-400 hover:scale-105"
                   >
                     <Eye className="w-3 h-3" />
                     Preview
                   </button>
                   <button
                     onClick={() => handleDownload(file.file_id, file.filename)}
-                    className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-xs transition-colors ${
-                      isDark
-                        ? 'bg-blue-600 hover:bg-blue-700 text-white'
-                        : 'bg-blue-500 hover:bg-blue-600 text-white'
-                    }`}
+                    className="flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-xl text-xs transition-all bg-blue-500/20 hover:bg-blue-500/30 text-blue-700 dark:text-blue-400 hover:scale-105"
                   >
                     <Download className="w-3 h-3" />
                     Download
@@ -350,11 +330,7 @@ const FileDisplayComponent = ({
                   {file.uploaded_username === username && (
                     <button
                       onClick={() => handleDelete(file.file_id)}
-                      className={`p-2 rounded-lg transition-colors ${
-                        isDark
-                          ? 'bg-red-600 hover:bg-red-700 text-white'
-                          : 'bg-red-500 hover:bg-red-600 text-white'
-                      }`}
+                      className="p-2 rounded-xl transition-all bg-red-500/20 hover:bg-red-500/30 text-red-700 dark:text-red-400 hover:scale-105"
                     >
                       <Trash2 className="w-3 h-3" />
                     </button>
@@ -365,15 +341,13 @@ const FileDisplayComponent = ({
           ))}
         </div>
       ) : (
-        <div className="space-y-2">
+        <div className="space-y-3">
           {filteredFiles.map((file) => (
             <div
               key={file._id}
-              className={`p-4 rounded-lg border transition-all hover:shadow-md ${
-                isDark 
-                  ? 'bg-gray-800 border-gray-700 hover:border-gray-600' 
-                  : 'bg-white border-gray-200 hover:border-gray-300'
-              } ${onFileSelect ? 'cursor-pointer hover:bg-blue-50 dark:hover:bg-blue-900/20' : ''}`}
+              className={`glass-card rounded-2xl p-4 transition-all hover:shadow-lg hover:-translate-y-1 ${
+                onFileSelect ? 'cursor-pointer hover:ring-2 hover:ring-blue-500/50' : ''
+              }`}
               onClick={() => onFileSelect && onFileSelect(file)}
             >
               <div className="flex items-center gap-4">
@@ -381,28 +355,26 @@ const FileDisplayComponent = ({
                 
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-4 mb-1">
-                    <h3 className="font-medium truncate">{file.filename}</h3>
-                    <span className={`text-xs px-2 py-1 rounded-full ${
-                      isDark ? 'bg-blue-900 text-blue-300' : 'bg-blue-100 text-blue-700'
-                    }`}>
+                    <h3 className="font-medium truncate text-gray-900 dark:text-gray-100">{file.filename}</h3>
+                    <span className="text-xs px-3 py-1 rounded-full bg-blue-500/20 text-blue-700 dark:text-blue-400">
                       {file.subject}
                     </span>
                   </div>
                   
                   <div className="flex items-center gap-4 text-sm">
-                    <span className={isDark ? 'text-gray-400' : 'text-gray-500'}>
+                    <span className="text-gray-500 dark:text-gray-400">
                       {formatFileSize(file.file_size)}
                     </span>
-                    <span className={isDark ? 'text-gray-400' : 'text-gray-500'}>
+                    <span className="text-gray-500 dark:text-gray-400">
                       by {file.uploaded_username}
                     </span>
-                    <span className={isDark ? 'text-gray-400' : 'text-gray-500'}>
+                    <span className="text-gray-500 dark:text-gray-400">
                       {formatDate(file.upload_date)}
                     </span>
                   </div>
                   
                   {file.description && (
-                    <p className={`text-sm mt-1 ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>
+                    <p className="text-sm mt-1 text-gray-600 dark:text-gray-400">
                       {file.description}
                     </p>
                   )}
@@ -412,22 +384,14 @@ const FileDisplayComponent = ({
                   <div className="flex items-center gap-2">
                     <button
                       onClick={() => handlePreview(file)}
-                      className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors ${
-                        isDark
-                          ? 'bg-green-600 hover:bg-green-700 text-white'
-                          : 'bg-green-500 hover:bg-green-600 text-white'
-                      }`}
+                      className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm transition-all bg-green-500/20 hover:bg-green-500/30 text-green-700 dark:text-green-400 hover:scale-105"
                     >
                       <Eye className="w-4 h-4" />
                       Preview
                     </button>
                     <button
                       onClick={() => handleDownload(file.file_id, file.filename)}
-                      className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors ${
-                        isDark
-                          ? 'bg-blue-600 hover:bg-blue-700 text-white'
-                          : 'bg-blue-500 hover:bg-blue-600 text-white'
-                      }`}
+                      className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm transition-all bg-blue-500/20 hover:bg-blue-500/30 text-blue-700 dark:text-blue-400 hover:scale-105"
                     >
                       <Download className="w-4 h-4" />
                       Download
@@ -435,11 +399,7 @@ const FileDisplayComponent = ({
                     {file.uploaded_username === username && (
                       <button
                         onClick={() => handleDelete(file.file_id)}
-                        className={`p-2 rounded-lg transition-colors ${
-                          isDark
-                            ? 'bg-red-600 hover:bg-red-700 text-white'
-                            : 'bg-red-500 hover:bg-red-600 text-white'
-                        }`}
+                        className="p-2 rounded-xl transition-all bg-red-500/20 hover:bg-red-500/30 text-red-700 dark:text-red-400 hover:scale-105"
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>

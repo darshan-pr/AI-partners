@@ -25,11 +25,16 @@ function getAgentSystem() {
   return globalAgentSystem;
 }
 
-// Process file uploads (copied from original route)
+// Process file uploads (with Knowledge Nest support)
 async function processFile(file) {
   try {
     if (!file || file.size === 0) {
       throw new Error('Invalid file provided');
+    }
+
+    // Handle Knowledge Nest files differently
+    if (file.isKnowledgeNestFile) {
+      return await processKnowledgeNestFile(file);
     }
 
     const buffer = Buffer.from(await file.arrayBuffer());
@@ -109,6 +114,68 @@ async function processFile(file) {
   }
 }
 
+// Process Knowledge Nest files
+async function processKnowledgeNestFile(knowledgeNestFile) {
+  try {
+    const fileName = knowledgeNestFile.name.toLowerCase();
+    const fileSize = (knowledgeNestFile.size / 1024).toFixed(2);
+
+    // For Knowledge Nest files, we have more metadata
+    let content = `📚 Knowledge Nest File Analysis:
+    • File: ${knowledgeNestFile.name}
+    • Size: ${fileSize} KB
+    • Type: ${knowledgeNestFile.type}
+    • Subject: ${knowledgeNestFile.subject}
+    • Uploaded by: ${knowledgeNestFile.uploadedBy}
+    • Source: Knowledge Nest (Institutional Resource)
+    
+    This is a shared educational resource from your institution's Knowledge Nest.
+    
+    `;
+
+    // Handle different file types from Knowledge Nest
+    if (fileName.endsWith('.pdf')) {
+      content += `Type: PDF Document
+      Status: Ready for content analysis. This PDF document is an institutional resource that can be analyzed for educational content.`;
+      
+    } else if (fileName.endsWith('.txt')) {
+      content += `Type: Text Document
+      Status: Text file ready for analysis. Content can be extracted and analyzed for educational insights.`;
+      
+    } else if (fileName.endsWith('.doc') || fileName.endsWith('.docx')) {
+      content += `Type: Microsoft Word Document
+      Status: Word document ready for analysis. Educational content can be extracted and processed.`;
+      
+    } else if (knowledgeNestFile.type.startsWith('image/')) {
+      content += `Type: Image File
+      Status: Image ready for visual analysis. This educational image can be analyzed for content, diagrams, charts, or other visual learning materials.`;
+      
+      return {
+        type: 'text',
+        content: content,
+        isKnowledgeNestFile: true
+      };
+    } else {
+      content += `Type: ${knowledgeNestFile.type}
+      Status: File metadata processed. This institutional resource is available for supported content analysis.`;
+    }
+    
+    return {
+      type: 'text',
+      content: content,
+      isKnowledgeNestFile: true
+    };
+    
+  } catch (error) {
+    console.error('Knowledge Nest file processing error:', error);
+    return {
+      type: 'error',
+      content: `Error processing Knowledge Nest file: ${error.message}`,
+      isKnowledgeNestFile: true
+    };
+  }
+}
+
 export async function POST(request) {
   try {
     // Check if Convex is properly initialized
@@ -119,12 +186,31 @@ export async function POST(request) {
       }, { status: 503 });
     }
 
-    const formData = await request.formData();
-    const message = formData.get('message');
-    const sessionId = formData.get('sessionId');
-    const username = formData.get('username');
-    const file = formData.get('file');
-    const multiAgentMode = formData.get('multiAgentMode') === 'true';
+    const contentType = request.headers.get('content-type');
+    let message, sessionId, username, file, multiAgentMode;
+
+    if (contentType?.includes('multipart/form-data')) {
+      // Handle regular file uploads
+      const formData = await request.formData();
+      message = formData.get('message');
+      sessionId = formData.get('sessionId');
+      username = formData.get('username');
+      file = formData.get('file');
+      multiAgentMode = formData.get('multiAgentMode') === 'true';
+    } else if (contentType?.includes('application/json')) {
+      // Handle Knowledge Nest file requests
+      const jsonData = await request.json();
+      message = jsonData.message;
+      sessionId = jsonData.sessionId;
+      username = jsonData.username;
+      file = jsonData.file; // This will be the Knowledge Nest file object
+      multiAgentMode = jsonData.multiAgentMode === 'true';
+    } else {
+      return NextResponse.json({ 
+        error: 'Unsupported content type',
+        success: false 
+      }, { status: 400 });
+    }
 
     // Validation
     if (!username) {
@@ -158,7 +244,7 @@ export async function POST(request) {
     let fileProcessingResult = null;
     let enhancedMessage = message || '';
     
-    if (file && file.size > 0) {
+    if (file && (file.size > 0 || file.isKnowledgeNestFile)) {
       fileProcessingResult = await processFile(file);
       
       if (fileProcessingResult.type === 'text') {

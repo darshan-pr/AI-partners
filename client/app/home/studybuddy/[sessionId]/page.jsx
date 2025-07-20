@@ -236,7 +236,10 @@ export default function StudyBuddySession({ params: paramsPromise }) {
         metadata: currentFile ? { 
           fileName: currentFile.name, 
           fileType: currentFile.type,
-          fileSize: `${(currentFile.size / 1024).toFixed(2)} KB`
+          fileSize: `${(currentFile.size / 1024).toFixed(2)} KB`,
+          isKnowledgeNestFile: currentFile.isKnowledgeNestFile || false,
+          subject: currentFile.subject || null,
+          uploadedBy: currentFile.uploadedBy || null
         } : null
       });
 
@@ -244,23 +247,43 @@ export default function StudyBuddySession({ params: paramsPromise }) {
       smartScrollToBottom();
       setShowScrollDown(false);
 
-      const formData = new FormData();
-      formData.append('message', currentMessage);
-      formData.append('sessionId', sessionId);
-      formData.append('username', user.username);
-      formData.append('multiAgentMode', multiAgentMode.toString());
+      let response;
       
-      if (currentFile) {
-        formData.append('file', currentFile);
-      }
-
       // Choose API endpoint based on multi-agent mode
       const apiEndpoint = multiAgentMode ? '/api/studybuddy-agents' : '/api/studybuddy';
-      
-      const response = await fetch(apiEndpoint, {
-        method: 'POST',
-        body: formData,
-      });
+
+      if (currentFile && currentFile.isKnowledgeNestFile) {
+        // Handle Knowledge Nest files with JSON
+        response = await fetch(apiEndpoint, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            message: currentMessage,
+            sessionId,
+            username: user.username,
+            multiAgentMode: multiAgentMode.toString(),
+            file: currentFile
+          }),
+        });
+      } else {
+        // Handle regular file uploads with FormData
+        const formData = new FormData();
+        formData.append('message', currentMessage);
+        formData.append('sessionId', sessionId);
+        formData.append('username', user.username);
+        formData.append('multiAgentMode', multiAgentMode.toString());
+        
+        if (currentFile) {
+          formData.append('file', currentFile);
+        }
+
+        response = await fetch(apiEndpoint, {
+          method: 'POST',
+          body: formData,
+        });
+      }
 
       if (!response.ok) {
         const errorData = await response.json();
