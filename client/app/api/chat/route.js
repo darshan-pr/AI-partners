@@ -31,11 +31,7 @@ function sanitizeContent(content) {
     .replace(/\n/g, '\\n')    // Escape newlines
     .replace(/\r/g, '\\r')    // Escape carriage returns
     .replace(/\t/g, '\\t')    // Escape tabs
-    .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '') // Remove control characters
-    .replace(/[\u0080-\uFFFF]/g, function(match) {
-      // Convert non-ASCII characters to unicode escape sequences
-      return '\\u' + ('0000' + match.charCodeAt(0).toString(16)).slice(-4);
-    });
+    .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, ''); // Remove control characters
 }
 
 // Enhanced file processing with better error handling and content sanitization
