@@ -77,7 +77,17 @@ export default defineSchema({
     questionId: v.string(),
     userAnswer: v.string(),
     isCorrect: v.boolean(),
-    submittedAt: v.number()
+    submittedAt: v.number(),
+    analysisData: v.optional(v.object({
+      confidence: v.number(),
+      keywordMatches: v.array(v.string()),
+      missingKeywords: v.array(v.string()),
+      reasoning: v.string(),
+      partialCredit: v.boolean(),
+      educationalFeedback: v.string(),
+      conceptsIdentified: v.array(v.string()),
+      improvementSuggestion: v.string()
+    }))
   }).index("by_username_quizId", ["username", "quizId"]),
 
   ai_review: defineTable({
@@ -157,10 +167,34 @@ export default defineSchema({
     resources: v.optional(v.array(v.object({
       title: v.string(),
       type: v.string(),
-      url: v.optional(v.string())
+      url: v.optional(v.string()),
+      description: v.optional(v.string()),
+      difficulty: v.optional(v.string())
     }))),
   }).index("by_planner_id", ["planner_id"])
     .index("by_position", ["position_index"])
     .index("by_due_date", ["due_date"])
-    .index("by_completion", ["is_completed"])
+    .index("by_completion", ["is_completed"]),
+
+  // Knowledge Nest File Storage
+  knowledge_nest: defineTable({
+    file_id: v.string(), // Convex file storage ID
+    organization_id: v.string(), // Reference to org table
+    class_sec: v.string(),
+    branch: v.string(),
+    uploaded_username: v.string(),
+    subject: v.string(),
+    filename: v.string(), // Original filename
+    file_size: v.number(), // File size in bytes
+    file_type: v.string(), // MIME type
+    upload_date: v.number(),
+    description: v.optional(v.string()),
+    is_active: v.boolean(), // For soft delete
+  }).index("by_organization", ["organization_id"])
+    .index("by_class_sec", ["class_sec"])
+    .index("by_branch", ["branch"])
+    .index("by_username", ["uploaded_username"])
+    .index("by_subject", ["subject"])
+    .index("by_upload_date", ["upload_date"])
+    .index("by_org_class", ["organization_id", "class_sec"])
 });

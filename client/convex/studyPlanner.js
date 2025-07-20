@@ -139,7 +139,7 @@ export const dropPlanner = mutation({
   }
 });
 
-// Get study planner by ID
+// Get study planner by ID with enriched resource data
 export const getPlannerById = query({
   args: { plannerId: v.string() },
   async handler(ctx, args) {
@@ -155,9 +155,21 @@ export const getPlannerById = query({
       .order("asc")
       .collect();
     
+    // Ensure each note has properly formatted resources for display
+    const notesWithResources = notes.map(note => ({
+      ...note,
+      resources: (note.resources || []).map(resource => ({
+        title: resource.title || "Study Resource",
+        type: resource.type || "Link",
+        url: resource.url || "#",
+        description: resource.description || "",
+        difficulty: resource.difficulty || ""
+      })).slice(0, 3) // Limit to 3 resources for better UI
+    }));
+    
     return {
       ...planner,
-      notes: notes.sort((a, b) => a.position_index - b.position_index)
+      notes: notesWithResources.sort((a, b) => a.position_index - b.position_index)
     };
   }
 });
@@ -211,7 +223,7 @@ export const generateStudyPlanner = mutation({
     const analysisData = analyzeUserPerformance(reviewsWithQuizData);
     
     // Generate study plan based on analysis
-    const studyPlan = generateStudyPlan(analysisData, args.type);
+    const studyPlan = generateStudyPlan(analysisData, args.type, reviewsWithQuizData);
     
     // Set expiration date
     const expirationDays = args.type === 'weekly' ? 7 : 30;
@@ -328,7 +340,9 @@ export const createManualPlanner = mutation({
       resources: v.array(v.object({
         title: v.string(),
         type: v.string(),
-        url: v.optional(v.string())
+        url: v.optional(v.string()),
+        description: v.optional(v.string()),
+        difficulty: v.optional(v.string())
       }))
     })),
     expiresAt: v.number()
@@ -501,7 +515,7 @@ function analyzeUserPerformance(reviewsWithQuizData) {
 }
 
 // Helper function to generate study plan
-function generateStudyPlan(analysisData, type) {
+function generateStudyPlan(analysisData, type, reviewsWithQuizData) {
   const isWeekly = type === 'weekly';
   const totalDays = isWeekly ? 7 : 30;
   const now = Date.now();
@@ -525,8 +539,27 @@ function generateStudyPlan(analysisData, type) {
     const startDate = now + (dayOffset * dayInMs);
     const endDate = startDate + (2 * dayInMs);
     
+    // Generate more descriptive and varied task titles
+    const taskTitles = [
+      `Strengthen Your ${conceptData.concept} Skills`,
+      `Deep Dive into ${conceptData.concept}`,
+      `Practice ${conceptData.concept} Fundamentals`, 
+      `Build Confidence in ${conceptData.concept}`,
+      `${conceptData.concept} Problem Solving Workshop`,
+      `Advanced ${conceptData.concept} Study Session`,
+      `Complete Guide to ${conceptData.concept}`,
+      `${conceptData.concept} Mastery Challenge`,
+      `Explore ${conceptData.concept} in Detail`,
+      `Solidify Your ${conceptData.concept} Understanding`,
+      `${conceptData.concept} Concepts & Applications`,
+      `Hands-on ${conceptData.concept} Practice`
+    ];
+    
+    const titleIndex = index % taskTitles.length;
+    const taskTitle = taskTitles[titleIndex];
+    
     const task = {
-      title: `Master ${conceptData.concept}`,
+      title: taskTitle,
       details: generateConceptTaskDetails(conceptData),
       start_date: startDate,
       due_date: endDate,
@@ -535,7 +568,7 @@ function generateStudyPlan(analysisData, type) {
       estimated_time: calculateEstimatedTime(conceptData.priority, isWeekly),
       subject: conceptData.subject,
       concepts: [conceptData.concept],
-      resources: generateConceptResources(conceptData)
+      resources: generateConceptResourcesFromReviews(conceptData, reviewsWithQuizData)
     };
     
     notes.push(task);
@@ -552,17 +585,7 @@ function generateStudyPlan(analysisData, type) {
       estimated_time: isWeekly ? "2-3 hours" : "4-5 hours",
       subject: primarySubject,
       concepts: conceptsToStudy.map(c => c.concept),
-      resources: [
-        {
-          title: "Create Practice Quiz",
-          type: "quiz",
-          url: "/quiz"
-        },
-        {
-          title: "Concept Summary Notes",
-          type: "study_guide"
-        }
-      ]
+      resources: generateReviewResources(conceptsToStudy, reviewsWithQuizData)
     };
     
     notes.push(reviewTask);
@@ -577,20 +600,34 @@ function generateStudyPlan(analysisData, type) {
 
 // Helper functions for task generation
 function generateConceptTaskDetails(conceptData) {
-  const baseDetails = `Focus on mastering "${conceptData.concept}" in ${conceptData.subject}.`;
-  const weaknessInfo = `Current mastery level: ${conceptData.masteryLevel}. Priority: ${conceptData.priority}.`;
+  const detailTemplates = [
+    `Dive deep into "${conceptData.concept}" in ${conceptData.subject}. Build a strong foundation through structured learning and hands-on practice.`,
+    `Strengthen your understanding of "${conceptData.concept}" with focused study sessions and practical applications.`,
+    `Master the fundamentals of "${conceptData.concept}" through comprehensive review and targeted practice exercises.`,
+    `Develop expertise in "${conceptData.concept}" by exploring core concepts and solving challenging problems.`,
+    `Enhance your "${conceptData.concept}" skills with interactive learning and real-world application scenarios.`,
+    `Build confidence in "${conceptData.concept}" through step-by-step learning and progressive skill development.`,
+    `Explore advanced aspects of "${conceptData.concept}" and strengthen your problem-solving abilities.`,
+    `Solidify your grasp of "${conceptData.concept}" through comprehensive study and practical implementation.`
+  ];
+  
+  const templateIndex = Math.floor(Math.random() * detailTemplates.length);
+  const baseDetails = detailTemplates[templateIndex];
+  
+  const weaknessInfo = `\nCurrent level: ${conceptData.masteryLevel} • Priority: ${conceptData.priority}`;
+  
   const suggestions = conceptData.allSuggestions && conceptData.allSuggestions.length > 0 
-    ? `\n\nAI Recommendations:\n${conceptData.allSuggestions.slice(0, 3).join('\n')}`
+    ? `\n\n🎯 AI Recommendations:\n${conceptData.allSuggestions.slice(0, 2).map(s => `• ${s}`).join('\n')}`
     : '';
   
-  const studySteps = `\n\nStudy Steps:
-1. Review fundamental concepts and definitions
-2. Work through practice examples
-3. Identify common mistakes and misconceptions
-4. Apply knowledge to varied problems
-5. Test understanding with quiz questions`;
+  const studySteps = `\n\n📚 Study Plan:
+• Review core concepts and terminology
+• Practice with guided examples  
+• Identify and address common mistakes
+• Apply knowledge to diverse problems
+• Self-assess with practice questions`;
   
-  return `${baseDetails}\n\n${weaknessInfo}${suggestions}${studySteps}`;
+  return `${baseDetails}${weaknessInfo}${suggestions}${studySteps}`;
 }
 
 function mapMasteryToDifficulty(masteryLevel) {
@@ -615,6 +652,269 @@ function calculateEstimatedTime(priority, isWeekly) {
   }
 }
 
+function generateConceptResourcesFromReviews(conceptData, reviewsWithQuizData) {
+  const resources = [];
+  
+  // Find AI reviews that contain this concept
+  const relevantReviews = reviewsWithQuizData.filter(reviewData => {
+    return reviewData.learning_resources && 
+           reviewData.learning_resources[conceptData.concept] &&
+           reviewData.learning_resources[conceptData.concept].resources;
+  });
+  
+  // Extract resources from AI reviews
+  relevantReviews.forEach(reviewData => {
+    const conceptResources = reviewData.learning_resources[conceptData.concept];
+    if (conceptResources && conceptResources.resources) {
+      conceptResources.resources.forEach(resource => {
+        // Add the resource with proper structure, filtering out undefined values
+        const cleanResource = {
+          title: resource.title || `${conceptData.concept} Study Material`,
+          type: resource.type || "Study Guide",
+          url: resource.url || `https://www.google.com/search?q=${encodeURIComponent(conceptData.concept + ' ' + conceptData.subject + ' learn')}`
+        };
+        
+        // Only add optional fields if they have valid values
+        if (resource.description && resource.description !== 'undefined') {
+          cleanResource.description = resource.description;
+        }
+        if (resource.difficulty && resource.difficulty !== 'undefined') {
+          cleanResource.difficulty = resource.difficulty;
+        }
+        
+        resources.push(cleanResource);
+      });
+    }
+  });
+  
+  // Always ensure we have at least 3 high-quality resources
+  const ensuredResources = [...resources];
+  
+  // Add curated resources based on concept and subject
+  const curatedResources = generateCuratedResources(conceptData);
+  curatedResources.forEach(resource => {
+    // Only add if we don't already have a similar resource
+    const exists = ensuredResources.some(existing => 
+      existing.title.toLowerCase().includes(resource.title.toLowerCase().substring(0, 10)) ||
+      existing.url === resource.url
+    );
+    if (!exists) {
+      ensuredResources.push(resource);
+    }
+  });
+  
+  // Limit to 3 resources for better UI display
+  return ensuredResources.slice(0, 3);
+}
+
+// Generate curated, high-quality resources based on concept and subject
+function generateCuratedResources(conceptData) {
+  const concept = conceptData.concept.toLowerCase();
+  const subject = conceptData.subject.toLowerCase();
+  
+  const resources = [];
+  
+  // Subject-specific curated resources
+  if (subject.includes('javascript') || subject.includes('js')) {
+    if (concept.includes('variable') || concept.includes('var')) {
+      resources.push(
+        {
+          title: "JavaScript Variables Guide - MDN",
+          type: "Documentation",
+          url: "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Guide/Grammar_and_types#variables",
+          description: "Official MDN documentation on JavaScript variables",
+          difficulty: "Beginner"
+        },
+        {
+          title: "JavaScript Variables Tutorial",
+          type: "Interactive Tutorial",
+          url: "https://www.w3schools.com/js/js_variables.asp",
+          description: "Interactive tutorial on JavaScript variables",
+          difficulty: "Beginner"
+        }
+      );
+    } else if (concept.includes('function')) {
+      resources.push(
+        {
+          title: "JavaScript Functions - MDN",
+          type: "Documentation", 
+          url: "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Guide/Functions",
+          description: "Comprehensive guide to JavaScript functions",
+          difficulty: "Intermediate"
+        },
+        {
+          title: "Function Exercises - freeCodeCamp",
+          type: "Practice",
+          url: "https://www.freecodecamp.org/learn/javascript-algorithms-and-data-structures/basic-javascript/",
+          description: "Practice JavaScript functions with exercises",
+          difficulty: "Beginner"
+        }
+      );
+    } else if (concept.includes('loop')) {
+      resources.push(
+        {
+          title: "JavaScript Loops Guide",
+          type: "Tutorial",
+          url: "https://www.w3schools.com/js/js_loop_for.asp",
+          description: "Learn JavaScript loops with examples",
+          difficulty: "Beginner"
+        },
+        {
+          title: "Loop Practice Problems",
+          type: "Practice",
+          url: "https://www.codewars.com/kata/search/javascript?tags=loops",
+          description: "Practice loop problems on Codewars",
+          difficulty: "Intermediate"
+        }
+      );
+    }
+  } else if (subject.includes('python')) {
+    if (concept.includes('variable')) {
+      resources.push(
+        {
+          title: "Python Variables Tutorial",
+          type: "Tutorial",
+          url: "https://www.w3schools.com/python/python_variables.asp",
+          description: "Learn Python variables and data types",
+          difficulty: "Beginner"
+        },
+        {
+          title: "Python Variables - Real Python",
+          type: "Guide",
+          url: "https://realpython.com/python-variables/",
+          description: "In-depth guide to Python variables",
+          difficulty: "Intermediate"
+        }
+      );
+    } else if (concept.includes('function')) {
+      resources.push(
+        {
+          title: "Python Functions Guide",
+          type: "Documentation",
+          url: "https://docs.python.org/3/tutorial/controlflow.html#defining-functions",
+          description: "Official Python documentation on functions",
+          difficulty: "Intermediate"
+        },
+        {
+          title: "Python Function Exercises",
+          type: "Practice",
+          url: "https://www.hackerrank.com/domains/python",
+          description: "Practice Python functions on HackerRank",
+          difficulty: "Beginner"
+        }
+      );
+    }
+  } else if (subject.includes('math')) {
+    resources.push(
+      {
+        title: `${conceptData.concept} - Khan Academy`,
+        type: "Video Course",
+        url: `https://www.khanacademy.org/search?page_search_query=${encodeURIComponent(conceptData.concept)}`,
+        description: `Learn ${conceptData.concept} with Khan Academy`,
+        difficulty: "All Levels"
+      },
+      {
+        title: `${conceptData.concept} Practice`,
+        type: "Practice",
+        url: `https://www.mathway.com/`,
+        description: `Practice ${conceptData.concept} problems`,
+        difficulty: "All Levels"
+      }
+    );
+  }
+  
+  // Generic fallback resources
+  if (resources.length === 0) {
+    resources.push(
+      {
+        title: `Learn ${conceptData.concept}`,
+        type: "Tutorial",
+        url: `https://www.youtube.com/results?search_query=${encodeURIComponent(conceptData.concept + ' ' + conceptData.subject + ' tutorial')}`,
+        description: `Video tutorials for ${conceptData.concept}`,
+        difficulty: "Beginner"
+      },
+      {
+        title: `${conceptData.concept} Practice`,
+        type: "Practice",
+        url: `https://www.google.com/search?q=${encodeURIComponent(conceptData.concept + ' ' + conceptData.subject + ' practice exercises')}`,
+        description: `Practice exercises for ${conceptData.concept}`,
+        difficulty: "Intermediate"
+      },
+      {
+        title: `${conceptData.concept} Reference`,
+        type: "Reference",
+        url: `https://www.google.com/search?q=${encodeURIComponent(conceptData.concept + ' ' + conceptData.subject + ' documentation')}`,
+        description: `Reference materials for ${conceptData.concept}`,
+        difficulty: "All Levels"
+      }
+    );
+  }
+  
+  return resources;
+}
+
+function generateReviewResources(conceptsToStudy, reviewsWithQuizData) {
+  const resources = [
+    {
+      title: "Create Practice Quiz",
+      type: "Quiz",
+      url: "/quiz",
+      description: "Test your understanding of all studied concepts",
+      difficulty: "All Levels"
+    }
+  ];
+  
+  // Add summary resources from AI reviews
+  const allReviewResources = [];
+  reviewsWithQuizData.forEach(reviewData => {
+    if (reviewData.learning_resources) {
+      Object.values(reviewData.learning_resources).forEach(conceptResource => {
+        if (conceptResource.resources) {
+          allReviewResources.push(...conceptResource.resources);
+        }
+      });
+    }
+  });
+  
+  // Find unique summary/overview type resources
+  const summaryResources = allReviewResources.filter(resource => 
+    resource.type && resource.type.toLowerCase().includes('guide') || 
+    resource.type && resource.type.toLowerCase().includes('reference') ||
+    resource.title && resource.title.toLowerCase().includes('complete') ||
+    resource.title && resource.title.toLowerCase().includes('comprehensive')
+  );
+  
+  if (summaryResources.length > 0) {
+    const summaryResource = summaryResources[0];
+    const cleanSummaryResource = {
+      title: summaryResource.title || "Comprehensive Study Guide",
+      type: summaryResource.type || "Study Guide",
+      url: summaryResource.url || `https://www.google.com/search?q=${encodeURIComponent('comprehensive study guide')}`
+    };
+    
+    // Only add optional fields if they have valid values
+    if (summaryResource.description && summaryResource.description !== 'undefined') {
+      cleanSummaryResource.description = `Comprehensive review material covering multiple concepts`;
+    }
+    if (summaryResource.difficulty && summaryResource.difficulty !== 'undefined') {
+      cleanSummaryResource.difficulty = "All Levels";
+    }
+    
+    resources.push(cleanSummaryResource);
+  }
+  
+  // Add concept summary notes
+  resources.push({
+    title: "Concept Summary Notes",
+    type: "Study Guide",
+    url: `https://www.google.com/search?q=${encodeURIComponent(conceptsToStudy.map(c => c.concept).join(' ') + ' summary notes')}`,
+    description: `Summary notes covering: ${conceptsToStudy.map(c => c.concept).join(', ')}`,
+    difficulty: "All Levels"
+  });
+  
+  return resources;
+}
+
 function generateConceptResources(conceptData) {
   return [
     {
@@ -631,6 +931,225 @@ function generateConceptResources(conceptData) {
       type: "reference"
     }
   ];
+}
+
+// Get study notes for a planner with enriched resource data
+export const getStudyNotesWithResources = query({
+  args: { plannerId: v.string() },
+  async handler(ctx, args) {
+    const notes = await ctx.db
+      .query("study_notes")
+      .withIndex("by_planner_id", (q) => q.eq("planner_id", args.plannerId))
+      .order("asc")
+      .collect();
+    
+    // Sort by position index and return with properly formatted resource data
+    return notes
+      .sort((a, b) => a.position_index - b.position_index)
+      .map(note => ({
+        ...note,
+        resources: (note.resources || []).map(resource => ({
+          title: resource.title || "Study Resource",
+          type: resource.type || "Link", 
+          url: resource.url || "#",
+          description: resource.description || `Learn more about ${note.concepts[0] || note.subject}`,
+          difficulty: resource.difficulty || "All Levels",
+          isClickable: Boolean(resource.url && resource.url !== "#")
+        })).slice(0, 3), // Limit to 3 resources for better display
+        hasResources: (note.resources || []).length > 0
+      }));
+  }
+});
+
+// Update study notes resources from AI reviews
+export const updateStudyNotesResources = mutation({
+  args: { 
+    plannerId: v.string(),
+    username: v.string()
+  },
+  async handler(ctx, args) {
+    // Get the planner
+    const planner = await ctx.db.get(args.plannerId);
+    if (!planner || planner.username !== args.username) {
+      throw new Error("Planner not found or access denied");
+    }
+    
+    // Get all study notes for this planner
+    const notes = await ctx.db
+      .query("study_notes")
+      .withIndex("by_planner_id", (q) => q.eq("planner_id", args.plannerId))
+      .collect();
+    
+    // Get AI reviews for this user
+    const reviews = await ctx.db
+      .query("ai_review")
+      .withIndex("by_username", (q) => q.eq("username", args.username))
+      .collect();
+    
+    // Prepare reviews with quiz data
+    const reviewsWithQuizData = [];
+    for (const review of reviews) {
+      const quiz = await ctx.db.get(review.quiz_id);
+      if (quiz) {
+        reviewsWithQuizData.push({
+          ...review,
+          quiz: quiz
+        });
+      }
+    }
+    
+    let updatedCount = 0;
+    
+    // Update each note's resources
+    for (const note of notes) {
+      const conceptData = {
+        concept: note.concepts[0], // Use the first concept
+        subject: note.subject,
+        priority: note.priority,
+        masteryLevel: note.difficulty_level
+      };
+      
+      const newResources = generateConceptResourcesFromReviews(conceptData, reviewsWithQuizData);
+      
+      // Only update if we found new resources
+      if (newResources.length > 0) {
+        await ctx.db.patch(note._id, {
+          resources: newResources
+        });
+        updatedCount++;
+      }
+    }
+    
+    return {
+      plannerId: args.plannerId,
+      updatedNotesCount: updatedCount,
+      totalNotesCount: notes.length,
+      success: true
+    };
+  }
+});
+
+// Get all resources for a specific concept across all user's reviews
+export const getConceptResources = query({
+  args: { 
+    username: v.string(),
+    concept: v.string()
+  },
+  async handler(ctx, args) {
+    const reviews = await ctx.db
+      .query("ai_review")
+      .withIndex("by_username", (q) => q.eq("username", args.username))
+      .collect();
+    
+    const resources = [];
+    
+    reviews.forEach(review => {
+      if (review.learning_resources && review.learning_resources[args.concept]) {
+        const conceptResources = review.learning_resources[args.concept];
+        if (conceptResources.resources) {
+          resources.push(...conceptResources.resources);
+        }
+      }
+    });
+    
+    // Remove duplicates based on URL and format for display
+    const uniqueResources = resources.filter((resource, index, self) => 
+      index === self.findIndex(r => r.url === resource.url)
+    );
+    
+    return uniqueResources.map(resource => ({
+      title: resource.title || "Study Resource",
+      type: resource.type || "Link",
+      url: resource.url || "#",
+      description: resource.description || "",
+      difficulty: resource.difficulty || "All Levels",
+      isClickable: Boolean(resource.url && resource.url !== "#")
+    })).slice(0, 3);
+  }
+});
+
+// Get formatted study note resources for UI display
+export const getStudyNoteResources = query({
+  args: { noteId: v.string() },
+  async handler(ctx, args) {
+    const note = await ctx.db.get(args.noteId);
+    if (!note) {
+      throw new Error("Study note not found");
+    }
+    
+    const resources = note.resources || [];
+    
+    // Format resources for UI display with fallbacks
+    const formattedResources = resources.map((resource, index) => ({
+      id: `${args.noteId}_resource_${index}`,
+      title: resource.title || `${note.concepts[0] || note.subject} Study Material`,
+      type: resource.type || "Study Guide",
+      url: resource.url || `https://www.google.com/search?q=${encodeURIComponent((note.concepts[0] || note.subject) + ' learn')}`,
+      description: resource.description || `Study materials for ${note.concepts[0] || note.subject}`,
+      difficulty: resource.difficulty || "All Levels",
+      isClickable: true,
+      color: getResourceTypeColor(resource.type || "Study Guide")
+    }));
+    
+    // Ensure we have at least 2-3 resources for display
+    while (formattedResources.length < 3) {
+      const concept = note.concepts[0] || note.subject;
+      const resourceTypes = ["Tutorial", "Practice", "Reference"];
+      const typeIndex = formattedResources.length;
+      const resourceType = resourceTypes[typeIndex] || "Study Guide";
+      
+      formattedResources.push({
+        id: `${args.noteId}_fallback_${typeIndex}`,
+        title: `${concept} ${resourceType}`,
+        type: resourceType,
+        url: generateFallbackUrl(concept, note.subject, resourceType),
+        description: `${resourceType} materials for ${concept}`,
+        difficulty: "All Levels",
+        isClickable: true,
+        color: getResourceTypeColor(resourceType)
+      });
+    }
+    
+    return formattedResources.slice(0, 3);
+  }
+});
+
+// Helper function to generate fallback URLs
+function generateFallbackUrl(concept, subject, type) {
+  const searchQuery = encodeURIComponent(`${concept} ${subject} ${type.toLowerCase()}`);
+  
+  switch (type.toLowerCase()) {
+    case 'tutorial':
+      return `https://www.youtube.com/results?search_query=${searchQuery}`;
+    case 'practice':
+      return `https://www.google.com/search?q=${searchQuery}+practice+exercises`;
+    case 'reference':
+      return `https://www.google.com/search?q=${searchQuery}+documentation`;
+    default:
+      return `https://www.google.com/search?q=${searchQuery}`;
+  }
+}
+
+// Helper function to get color for resource type
+function getResourceTypeColor(type) {
+  const colors = {
+    'book': 'blue',
+    'guide': 'blue',
+    'tutorial': 'green', 
+    'video': 'red',
+    'practice': 'orange',
+    'quiz': 'purple',
+    'reference': 'gray',
+    'interactive': 'indigo'
+  };
+  
+  const typeKey = type.toLowerCase();
+  for (const [key, color] of Object.entries(colors)) {
+    if (typeKey.includes(key)) {
+      return color;
+    }
+  }
+  return 'blue'; // default color
 }
 
 // Clean up expired planners

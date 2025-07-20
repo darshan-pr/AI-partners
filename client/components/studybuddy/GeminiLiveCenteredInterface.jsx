@@ -33,6 +33,9 @@ const GeminiLiveCenteredInterface = ({
   const [lastResponse, setLastResponse] = useState('');
   const [conversationTurns, setConversationTurns] = useState(0);
   const [isMinimized, setIsMinimized] = useState(false);
+  const [interruptionEnabled, setInterruptionEnabled] = useState(true);
+  const [voiceMode, setVoiceMode] = useState('conversational'); // 'conversational' or 'detailed'
+  const [audioInterruptionStream, setAudioInterruptionStream] = useState(null);
   
   const wsRef = useRef(null);
   const recognitionRef = useRef(null);
@@ -40,6 +43,9 @@ const GeminiLiveCenteredInterface = ({
   const analyserRef = useRef(null);
   const microphoneRef = useRef(null);
   const animationFrameRef = useRef(null);
+  const speechSynthRef = useRef(null);
+  const currentUtteranceRef = useRef(null);
+  const interruptionTimeoutRef = useRef(null);
 
   // Initialize connection when opened
   useEffect(() => {
@@ -216,7 +222,11 @@ const GeminiLiveCenteredInterface = ({
     if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
       wsRef.current.send(JSON.stringify({
         type: 'voice_input',
-        data: { transcript: transcriptText }
+        data: { 
+          transcript: transcriptText,
+          voiceMode: voiceMode,
+          interruptionEnabled: interruptionEnabled
+        }
       }));
     }
   };
@@ -227,35 +237,307 @@ const GeminiLiveCenteredInterface = ({
       return;
     }
 
+    // Stop any current speech before starting new one
+    if (speechSynthesis.speaking) {
+      speechSynthesis.cancel();
+    }
+
     setIsSpeaking(true);
     
-    const utterance = new SpeechSynthesisUtterance(text);
+    // Process text for more conversational delivery
+    const processedText = makeTextConversational(text);
+    
+    const utterance = new SpeechSynthesisUtterance(processedText);
+    currentUtteranceRef.current = utterance;
     
     // Use standard voice selector for most reliable voice
     const selectedVoice = VoiceSelector.getStandardVoice();
     if (selectedVoice) {
       utterance.voice = selectedVoice;
       const settings = VoiceSelector.getOptimalSettings(selectedVoice);
-      utterance.rate = settings.rate;
+      utterance.rate = voiceMode === 'conversational' ? settings.rate * 1.1 : settings.rate;
       utterance.pitch = settings.pitch;
       utterance.volume = settings.volume;
     } else {
-      // Fallback settings for default voice
-      utterance.rate = 0.95;
+      // Fallback settings for default voice - more natural for conversation
+      utterance.rate = voiceMode === 'conversational' ? 1.05 : 0.95;
       utterance.pitch = 1.0;
       utterance.volume = 1.0;
     }
     
+    utterance.onstart = () => {
+      console.log('🗣️ AI started speaking - enabling DUAL interruption monitoring');
+      setIsSpeaking(true);
+      // Start BOTH monitoring systems for maximum responsiveness
+      if (interruptionEnabled) {
+        startInterruptionMonitoring(); // Speech recognition
+        startAudioInterruptionMonitoring(); // Audio level monitoring
+      }
+    };
+    
     utterance.onend = () => {
+      console.log('✅ AI finished speaking');
       setIsSpeaking(false);
+      currentUtteranceRef.current = null;
+      stopInterruptionMonitoring();
+      stopAudioInterruptionMonitoring(); // Stop both monitoring systems
     };
     
     utterance.onerror = (error) => {
       console.error('Speech synthesis error:', error);
       setIsSpeaking(false);
+      currentUtteranceRef.current = null;
+      stopInterruptionMonitoring();
+      stopAudioInterruptionMonitoring(); // Stop both monitoring systems
+    };
+
+    // Add boundary event for more granular control
+    utterance.onboundary = (event) => {
+      // Check for interruption at word boundaries for quicker response
+      if (event.name === 'word' && !isSpeaking) {
+        // User might have interrupted, stop speech
+        speechSynthesis.cancel();
+      }
     };
     
+    console.log('🎙️ Starting speech synthesis...');
     speechSynthesis.speak(utterance);
+  };
+
+  // Make AI responses more conversational and human-like
+  const makeTextConversational = (text) => {
+    if (voiceMode !== 'conversational') return text;
+    
+    // Add natural pauses and conversational connectors
+    let conversational = text
+      // Add natural pauses
+      .replace(/\. /g, '... ')
+      .replace(/\? /g, '? ')
+      .replace(/\! /g, '! ')
+      // Make it more casual
+      .replace(/You should/g, "You might wanna")
+      .replace(/I recommend/g, "I'd suggest")
+      .replace(/It is important/g, "It's pretty important")
+      .replace(/However,/g, "But hey,")
+      .replace(/Therefore,/g, "So,")
+      .replace(/Furthermore,/g, "Also,")
+      .replace(/Additionally,/g, "Plus,")
+      // Add conversational fillers occasionally
+      .replace(/^Let me/, "Alright, let me")
+      .replace(/^I think/, "I think")
+      .replace(/^This/, "So this");
+    
+    // Keep responses shorter for voice - split long responses
+    const sentences = conversational.split(/[.!?]+/).filter(s => s.trim().length > 0);
+    if (sentences.length > 3) {
+      // Take first 2-3 sentences for voice
+      conversational = sentences.slice(0, 3).join('. ') + '.';
+    }
+    
+    return conversational;
+  };
+
+  // Enhanced audio monitoring for instant interruption detection
+  const startAudioInterruptionMonitoring = async () => {
+    if (!interruptionEnabled || audioInterruptionStream) return;
+    
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      setAudioInterruptionStream(stream);
+      
+      const audioContext = new AudioContext();
+      const source = audioContext.createMediaStreamSource(stream);
+      const analyser = audioContext.createAnalyser();
+      
+      analyser.fftSize = 256;
+      analyser.smoothingTimeConstant = 0.1; // Very responsive
+      source.connect(analyser);
+      
+      const bufferLength = analyser.frequencyBinCount;
+      const dataArray = new Uint8Array(bufferLength);
+      
+      let consecutiveActiveFrames = 0;
+      const VOICE_THRESHOLD = 25; // Lower threshold for faster detection
+      const FRAMES_TO_TRIGGER = 2; // Trigger after just 2 frames of activity
+      
+      const checkAudioLevel = () => {
+        if (!isSpeaking || !speechSynthesis.speaking) {
+          consecutiveActiveFrames = 0;
+          return;
+        }
+        
+        analyser.getByteFrequencyData(dataArray);
+        
+        // Calculate average audio level
+        const average = dataArray.reduce((sum, value) => sum + value, 0) / bufferLength;
+        
+        if (average > VOICE_THRESHOLD) {
+          consecutiveActiveFrames++;
+          
+          // Trigger interruption after minimal voice activity
+          if (consecutiveActiveFrames >= FRAMES_TO_TRIGGER) {
+            console.log('🎙️ AUDIO INTERRUPTION - Voice activity detected:', average);
+            handleUserInterruption('voice_detected');
+            consecutiveActiveFrames = 0;
+            return;
+          }
+        } else {
+          consecutiveActiveFrames = Math.max(0, consecutiveActiveFrames - 1);
+        }
+        
+        // Continue monitoring if AI is still speaking
+        if (isSpeaking && speechSynthesis.speaking) {
+          requestAnimationFrame(checkAudioLevel);
+        }
+      };
+      
+      // Start monitoring immediately
+      if (isSpeaking && speechSynthesis.speaking) {
+        requestAnimationFrame(checkAudioLevel);
+      }
+      
+    } catch (error) {
+      console.log('Could not start audio interruption monitoring:', error);
+    }
+  };
+
+  const stopAudioInterruptionMonitoring = () => {
+    if (audioInterruptionStream) {
+      audioInterruptionStream.getTracks().forEach(track => track.stop());
+      setAudioInterruptionStream(null);
+    }
+  };
+
+  // Start monitoring for user interruption
+  const startInterruptionMonitoring = () => {
+    if (!interruptionEnabled) return;
+    
+    // Create separate recognition instance just for interruption detection
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    const interruptionRecognition = new SpeechRecognition();
+    
+    // Configure for maximum sensitivity and responsiveness
+    interruptionRecognition.continuous = true;
+    interruptionRecognition.interimResults = true;
+    interruptionRecognition.lang = 'en-US';
+    
+    // AGGRESSIVE INTERRUPTION: ANY voice activity triggers interruption
+    interruptionRecognition.onresult = (event) => {
+      // Only interrupt if AI is currently speaking
+      if (!isSpeaking || !speechSynthesis.speaking) return;
+      
+      const latestResult = event.results[event.results.length - 1];
+      if (latestResult && latestResult[0]) {
+        const transcript = latestResult[0].transcript.trim();
+        const confidence = latestResult[0].confidence;
+        
+        // IMMEDIATE INTERRUPTION on ANY detected speech
+        // Even if it's just a sound or single word
+        if (transcript.length > 0 && (confidence === undefined || confidence > 0.3)) {
+          console.log('🛑 IMMEDIATE INTERRUPTION - User voice detected:', transcript);
+          handleUserInterruption(transcript);
+          try {
+            interruptionRecognition.stop();
+          } catch (e) {
+            // Ignore stop errors
+          }
+        }
+      }
+    };
+    
+    interruptionRecognition.onerror = (event) => {
+      console.log('Interruption monitoring error:', event.error);
+      // Don't restart on error to avoid conflicts
+    };
+    
+    interruptionRecognition.onend = () => {
+      // Only restart if AI is still speaking and no interruption occurred
+      if (isSpeaking && speechSynthesis.speaking && interruptionEnabled) {
+        setTimeout(() => {
+          try {
+            interruptionRecognition.start();
+          } catch (error) {
+            console.log('Could not restart interruption monitoring:', error);
+          }
+        }, 50); // Very short delay for immediate restart
+      }
+    };
+    
+    // Start monitoring with minimal delay
+    setTimeout(() => {
+      if (isSpeaking && speechSynthesis.speaking) {
+        try {
+          interruptionRecognition.start();
+          console.log('🎤 Started aggressive interruption monitoring');
+        } catch (error) {
+          console.log('Could not start interruption monitoring:', error);
+        }
+      }
+    }, 100); // Small delay to let AI speech start
+    
+    // Store reference for cleanup
+    interruptionTimeoutRef.current = interruptionRecognition;
+  };
+
+  // Stop interruption monitoring
+  const stopInterruptionMonitoring = () => {
+    if (interruptionTimeoutRef.current) {
+      try {
+        // If it's a recognition instance, stop it
+        if (interruptionTimeoutRef.current.stop) {
+          interruptionTimeoutRef.current.stop();
+        }
+        // If it's a timeout, clear it
+        else if (typeof interruptionTimeoutRef.current === 'number') {
+          clearTimeout(interruptionTimeoutRef.current);
+        }
+      } catch (error) {
+        console.log('Error stopping interruption monitoring:', error);
+      }
+      interruptionTimeoutRef.current = null;
+    }
+  };
+
+  // Handle when user interrupts AI - IMMEDIATE RESPONSE
+  const handleUserInterruption = (userInput) => {
+    if (!isSpeaking) return;
+    
+    console.log('🛑 IMMEDIATE USER INTERRUPTION - Stopping AI speech now!', userInput);
+    
+    // FORCE STOP all speech synthesis immediately
+    if (speechSynthesis.speaking) {
+      speechSynthesis.cancel(); // Hard stop
+    }
+    
+    // Force stop any queued speech
+    if (currentUtteranceRef.current) {
+      currentUtteranceRef.current = null;
+    }
+    
+    // Stop ALL monitoring systems immediately
+    stopInterruptionMonitoring();
+    stopAudioInterruptionMonitoring();
+    
+    // Reset all states immediately
+    setIsSpeaking(false);
+    
+    // Set the user's input as the current transcript
+    setTranscript(userInput);
+    
+    // IMMEDIATELY start listening for more user input
+    setIsListening(true);
+    
+    // Ensure we're listening for the full user input with minimal delay
+    setTimeout(() => {
+      if (recognitionRef.current && !isListening) {
+        try {
+          recognitionRef.current.start();
+          console.log('✅ Restarted listening after interruption');
+        } catch (error) {
+          console.log('Could not restart recognition after interruption:', error);
+        }
+      }
+    }, 50); // Very minimal delay
   };
 
   const toggleListening = async () => {
@@ -295,21 +577,36 @@ const GeminiLiveCenteredInterface = ({
   };
 
   const cleanup = () => {
-    if (wsRef.current) {
-      wsRef.current.close();
-    }
-    if (recognitionRef.current) {
-      recognitionRef.current.stop();
-    }
+    // Stop any ongoing speech
     if (speechSynthesis.speaking) {
       speechSynthesis.cancel();
     }
+    
+    // Clear ALL monitoring systems
+    stopInterruptionMonitoring();
+    stopAudioInterruptionMonitoring();
+    
+    // Clean up WebSocket
+    if (wsRef.current) {
+      wsRef.current.close();
+    }
+    
+    // Clean up speech recognition
+    if (recognitionRef.current) {
+      recognitionRef.current.stop();
+    }
+    
+    // Clean up audio visualization
     if (animationFrameRef.current) {
       cancelAnimationFrame(animationFrameRef.current);
     }
     if (audioContextRef.current) {
       audioContextRef.current.close();
     }
+    
+    // Clear refs
+    currentUtteranceRef.current = null;
+    interruptionTimeoutRef.current = null;
   };
 
   if (!isOpen) return null;
@@ -380,9 +677,51 @@ const GeminiLiveCenteredInterface = ({
                     Multi-Agent
                   </span>
                 )}
+                {/* Voice Mode Indicator */}
+                <span className={`text-xs px-2 py-1 rounded-full ${
+                  voiceMode === 'conversational'
+                    ? isDark 
+                      ? 'bg-green-900/30 text-green-300' 
+                      : 'bg-green-100 text-green-600'
+                    : isDark 
+                      ? 'bg-purple-900/30 text-purple-300' 
+                      : 'bg-purple-100 text-purple-600'
+                }`}>
+                  {voiceMode === 'conversational' ? 'Casual' : 'Detailed'}
+                </span>
               </div>
               
               <div className="flex items-center gap-2">
+                {/* Voice Mode Toggle */}
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={() => setVoiceMode(voiceMode === 'conversational' ? 'detailed' : 'conversational')}
+                    className={`p-1.5 rounded-full transition-colors text-xs ${
+                      isDark 
+                        ? 'hover:bg-gray-700 text-gray-400' 
+                        : 'hover:bg-gray-100 text-gray-600'
+                    }`}
+                    title={`Switch to ${voiceMode === 'conversational' ? 'detailed' : 'conversational'} mode`}
+                  >
+                    💬
+                  </button>
+                  
+                  {/* Interruption Toggle */}
+                  <button
+                    onClick={() => setInterruptionEnabled(!interruptionEnabled)}
+                    className={`p-1.5 rounded-full transition-colors text-xs ${
+                      interruptionEnabled
+                        ? isDark ? 'text-green-400' : 'text-green-600'
+                        : isDark ? 'text-gray-500' : 'text-gray-400'
+                    } ${
+                      isDark ? 'hover:bg-gray-700' : 'hover:bg-gray-100'
+                    }`}
+                    title={`${interruptionEnabled ? 'Disable' : 'Enable'} voice interruption`}
+                  >
+                    ⚡
+                  </button>
+                </div>
+                
                 <button
                   onClick={() => setIsMinimized(true)}
                   className={`p-2 rounded-full transition-colors ${
@@ -524,6 +863,12 @@ const GeminiLiveCenteredInterface = ({
                 isDark ? 'text-gray-400' : 'text-gray-500'
               }`}>
                 <p className="mb-2">Tap the microphone to start talking</p>
+                {interruptionEnabled && (
+                  <p className="text-xs mb-1">💡 You can interrupt me while I'm speaking</p>
+                )}
+                <p className="text-xs mb-1">
+                  Voice mode: {voiceMode === 'conversational' ? 'Quick & casual responses' : 'Detailed explanations'}
+                </p>
                 {multiAgentMode && (
                   <p className="text-xs">Questions are automatically routed to the best AI agent</p>
                 )}

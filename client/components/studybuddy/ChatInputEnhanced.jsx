@@ -32,7 +32,6 @@ const ChatInput = ({
   onSendMessage,
   onFileSelect,
   username,
-  // Voice animation states (passed from parent)
   isUserSpeaking = false,
   isAISpeaking = false,
   voiceAnimationIntensity = 0

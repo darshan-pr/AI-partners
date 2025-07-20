@@ -400,6 +400,43 @@ const StudyPlannerModal = ({ isOpen, onClose, username }) => {
                             </div>
                           )}
                           
+                          {/* Resource Links */}
+                          {note.resources && note.resources.length > 0 && (
+                            <div className="mb-4">
+                              <h5 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                📖 Study Resources:
+                              </h5>
+                              <div className="flex flex-wrap gap-2">
+                                {note.resources.slice(0, 3).map((resource, i) => (
+                                  <a
+                                    key={i}
+                                    href={resource.url}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="inline-flex items-center space-x-1 px-3 py-1 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/30 dark:to-indigo-900/30 text-blue-700 dark:text-blue-400 rounded-full text-xs font-medium hover:from-blue-100 hover:to-indigo-100 dark:hover:from-blue-800/40 dark:hover:to-indigo-800/40 transition-all duration-200 border border-blue-200 dark:border-blue-700 hover:shadow-sm"
+                                    title={resource.description || resource.title}
+                                  >
+                                    <span>
+                                      {resource.type === 'Tutorial' && '🎓'}
+                                      {resource.type === 'Video Course' && '📺'}
+                                      {resource.type === 'Practice' && '💻'}
+                                      {resource.type === 'Documentation' && '📚'}
+                                      {resource.type === 'Interactive Tutorial' && '🎮'}
+                                      {resource.type === 'Book/Guide' && '📖'}
+                                      {resource.type === 'Quiz' && '❓'}
+                                      {resource.type === 'Reference' && '📋'}
+                                      {!['Tutorial', 'Video Course', 'Practice', 'Documentation', 'Interactive Tutorial', 'Book/Guide', 'Quiz', 'Reference'].includes(resource.type) && '🔗'}
+                                    </span>
+                                    <span>{resource.title.length > 20 ? `${resource.title.substring(0, 20)}...` : resource.title}</span>
+                                    <span className="text-xs opacity-70">
+                                      {resource.difficulty && `(${resource.difficulty})`}
+                                    </span>
+                                  </a>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                          
                           <div className="flex items-center justify-between">
                             <button
                               onClick={() => handleToggleNote(note._id, note.is_completed)}
@@ -413,16 +450,8 @@ const StudyPlannerModal = ({ isOpen, onClose, username }) => {
                             </button>
                             
                             {note.resources && note.resources.length > 0 && (
-                              <div className="flex items-center space-x-2">
-                                <span className="text-sm text-gray-500 dark:text-gray-400">Resources:</span>
-                                {note.resources.map((resource, i) => (
-                                  <span
-                                    key={i}
-                                    className="text-xs px-2 py-1 bg-gray-100 dark:bg-gray-700 rounded"
-                                  >
-                                    {resource.type}
-                                  </span>
-                                ))}
+                              <div className="text-xs text-gray-500 dark:text-gray-400">
+                                {note.resources.length} resource{note.resources.length > 1 ? 's' : ''} available
                               </div>
                             )}
                           </div>

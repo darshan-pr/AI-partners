@@ -110,7 +110,17 @@ export const submitQuizAnswers = mutation({
     answers: v.array(v.object({
       questionId: v.string(),
       userAnswer: v.string(),
-      isCorrect: v.boolean()
+      isCorrect: v.boolean(),
+      analysisData: v.optional(v.object({
+        confidence: v.number(),
+        keywordMatches: v.array(v.string()),
+        missingKeywords: v.array(v.string()),
+        reasoning: v.string(),
+        partialCredit: v.boolean(),
+        educationalFeedback: v.string(),
+        conceptsIdentified: v.array(v.string()),
+        improvementSuggestion: v.string()
+      }))
     }))
   },
   async handler(ctx, args) {
@@ -121,7 +131,8 @@ export const submitQuizAnswers = mutation({
         questionId: answer.questionId,
         userAnswer: answer.userAnswer,
         isCorrect: answer.isCorrect,
-        submittedAt: Date.now()
+        submittedAt: Date.now(),
+        analysisData: answer.analysisData || undefined
       });
     }
     return true;
@@ -212,5 +223,33 @@ export const keepPreviousScore = mutation({
     }
 
     return { success: true };
+  }
+});
+
+// Get user answers with detailed analysis data
+export const getUserAnswersWithAnalysis = query({
+  args: { 
+    quizId: v.string(),
+    username: v.string()
+  },
+  async handler(ctx, args) {
+    const answers = await ctx.db
+      .query("user_answers")
+      .withIndex("by_username_quizId", (q) => 
+        q.eq("username", args.username).eq("quizId", args.quizId))
+      .collect();
+
+    // Enrich answers with question data
+    const enrichedAnswers = await Promise.all(
+      answers.map(async (answer) => {
+        const question = await ctx.db.get(answer.questionId);
+        return {
+          ...answer,
+          questionData: question
+        };
+      })
+    );
+
+    return enrichedAnswers;
   }
 });

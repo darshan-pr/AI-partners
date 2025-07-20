@@ -23,6 +23,8 @@ export async function POST(request) {
     3. Consider synonyms, abbreviations, and different phrasings
     4. Determine if the answer is correct, partially correct, or incorrect
     5. Provide a confidence score (0-100)
+    6. Give a detailed explanation of why the answer is right/wrong
+    7. Provide educational feedback to help the user understand
 
     Respond in JSON format:
     {
@@ -30,8 +32,11 @@ export async function POST(request) {
       "confidence": number (0-100),
       "keywordMatches": [array of matched keywords],
       "missingKeywords": [array of missing important keywords],
-      "reasoning": "explanation of why the answer is correct/incorrect",
-      "partialCredit": boolean (if partially correct)
+      "reasoning": "detailed explanation of why the answer is correct/incorrect with specific examples",
+      "partialCredit": boolean (if partially correct),
+      "educationalFeedback": "constructive feedback to help the user learn from this question",
+      "conceptsIdentified": [array of key concepts this question tests],
+      "improvementSuggestion": "specific suggestion on how to improve understanding of this topic"
     }
     `;
 

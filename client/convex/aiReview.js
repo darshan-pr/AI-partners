@@ -76,7 +76,9 @@ export const generateReview = mutation({
           correctAnswer: q.aiAnswer,
           userAnswer: userAnswer ? userAnswer.userAnswer : null,
           isCorrect: userAnswer ? userAnswer.isCorrect : false,
-          explanation: q.explanation
+          explanation: q.explanation,
+          analysisData: userAnswer ? userAnswer.analysisData : null,
+          keywordMatches: q.keywordMatches || []
         };
       })
     };
@@ -141,7 +143,7 @@ function analyzeQuizByConceptAreas(quizData) {
   const concepts = {};
   
   quizData.questions.forEach(question => {
-    const possibleConcepts = extractConceptsFromQuestion(question.questionText, quizData.subject);
+    const possibleConcepts = extractConceptsFromQuestion(question.questionText, quizData.subject, question.analysisData);
     
     possibleConcepts.forEach(concept => {
       if (!concepts[concept]) {
@@ -161,7 +163,8 @@ function analyzeQuizByConceptAreas(quizData) {
         isCorrect: question.isCorrect,
         userAnswer: question.userAnswer,
         correctAnswer: question.correctAnswer,
-        explanation: question.explanation
+        explanation: question.explanation,
+        analysisData: question.analysisData
       });
     });
   });
@@ -324,7 +327,24 @@ function generateFeedback(quizData) {
   const totalCount = quizData.questions.length;
   const percentCorrect = (correctCount / totalCount) * 100;
   
+  // Gather insights from analysis data
+  const questionsWithAnalysis = quizData.questions.filter(q => q.analysisData);
+  const avgConfidence = questionsWithAnalysis.length > 0 
+    ? questionsWithAnalysis.reduce((sum, q) => sum + q.analysisData.confidence, 0) / questionsWithAnalysis.length 
+    : 0;
+  
   let feedback = `You scored ${percentCorrect.toFixed(1)}% on this ${quizData.subject} quiz. `;
+  
+  // Add confidence-based insights
+  if (questionsWithAnalysis.length > 0) {
+    if (avgConfidence > 80) {
+      feedback += "Your answers showed high confidence levels, indicating good understanding. ";
+    } else if (avgConfidence > 60) {
+      feedback += "Your answers showed moderate confidence, suggesting some areas need reinforcement. ";
+    } else {
+      feedback += "Your answers showed lower confidence levels, indicating fundamental concepts need more study. ";
+    }
+  }
   
   if (percentCorrect >= 80) {
     feedback += "Excellent work! You have demonstrated a strong understanding of the material.";
@@ -334,6 +354,22 @@ function generateFeedback(quizData) {
     feedback += "You're making progress, but there are several concepts that need more attention.";
   } else {
     feedback += "This topic seems challenging for you. I recommend revisiting the fundamentals before moving forward.";
+  }
+  
+  // Add specific insights from incorrect answers
+  const incorrectAnswers = quizData.questions.filter(q => !q.isCorrect && q.analysisData);
+  if (incorrectAnswers.length > 0) {
+    const commonMissingConcepts = [];
+    incorrectAnswers.forEach(q => {
+      if (q.analysisData.conceptsIdentified) {
+        commonMissingConcepts.push(...q.analysisData.conceptsIdentified);
+      }
+    });
+    
+    if (commonMissingConcepts.length > 0) {
+      const uniqueConcepts = [...new Set(commonMissingConcepts)];
+      feedback += ` The most challenging concepts for you appear to be: ${uniqueConcepts.slice(0, 3).join(", ")}.`;
+    }
   }
   
   return feedback;
@@ -347,35 +383,53 @@ function generateSuggestions(quizData) {
     return "Congratulations on a perfect score! To continue growing, consider exploring more advanced topics in this subject.";
   }
   
-  let suggestions = "Based on your answers, here are some areas to focus on:\n\n";
+  let suggestions = "Based on your answers, here are some specific areas to focus on:\n\n";
   
-  // Group incorrect questions by concept
+  // Use analysis data for more detailed suggestions
+  incorrectQuestions.forEach((q, index) => {
+    if (q.analysisData) {
+      suggestions += `${index + 1}. **Question about "${q.questionText.substring(0, 50)}..."**\n`;
+      suggestions += `   - **Issue**: ${q.analysisData.reasoning}\n`;
+      suggestions += `   - **Learning Focus**: ${q.analysisData.educationalFeedback}\n`;
+      suggestions += `   - **Improvement Tip**: ${q.analysisData.improvementSuggestion}\n\n`;
+    } else {
+      // Fallback for questions without analysis data
+      suggestions += `${index + 1}. Review the concept: "${q.questionText.substring(0, 50)}..."\n`;
+      suggestions += `   - Study why "${q.correctAnswer}" is the correct answer.\n\n`;
+    }
+  });
+  
+  // Group incorrect questions by concept for broader suggestions
   const conceptMistakes = {};
   incorrectQuestions.forEach(q => {
-    const concepts = extractConceptsFromQuestion(q.questionText, quizData.subject);
-    concepts.forEach(concept => {
-      if (!conceptMistakes[concept]) {
-        conceptMistakes[concept] = [];
-      }
-      conceptMistakes[concept].push(q);
-    });
-  });
-  
-  // Generate suggestions for each concept
-  Object.entries(conceptMistakes).forEach(([concept, questions]) => {
-    suggestions += `• ${concept}: Review ${questions.length > 1 ? 'these concepts' : 'this concept'}. `;
-    
-    // Add specific suggestions based on the questions
-    if (questions.length <= 2) {
-      questions.forEach(q => {
-        suggestions += `Study "${q.questionText.substring(0, 50)}..." and understand why "${q.correctAnswer}" is the correct answer. `;
+    if (q.analysisData && q.analysisData.conceptsIdentified) {
+      q.analysisData.conceptsIdentified.forEach(concept => {
+        if (!conceptMistakes[concept]) {
+          conceptMistakes[concept] = [];
+        }
+        conceptMistakes[concept].push(q);
       });
     } else {
-      suggestions += `Focus particularly on the ${questions.length} questions related to this topic. `;
+      // Fallback concept extraction
+      const concepts = extractConceptsFromQuestion(q.questionText, quizData.subject);
+      concepts.forEach(concept => {
+        if (!conceptMistakes[concept]) {
+          conceptMistakes[concept] = [];
+        }
+        conceptMistakes[concept].push(q);
+      });
     }
-    
-    suggestions += "\n\n";
   });
+  
+  // Add general concept-based suggestions
+  if (Object.keys(conceptMistakes).length > 0) {
+    suggestions += "\n**Overall Learning Priorities:**\n\n";
+    Object.entries(conceptMistakes).forEach(([concept, questions]) => {
+      suggestions += `• **${concept}**: ${questions.length} question${questions.length > 1 ? 's' : ''} - `;
+      suggestions += `This is a key area that needs attention. `;
+      suggestions += `Focus on understanding the fundamentals and practice with similar examples.\n\n`;
+    });
+  }
   
   return suggestions;
 }
@@ -425,23 +479,43 @@ function identifyStrengths(quizData) {
 
 
 // Helper function to extract concepts from question text
-function extractConceptsFromQuestion(questionText, subject) {
+function extractConceptsFromQuestion(questionText, subject, analysisData = null) {
+  // First try to use concepts from analysis data if available
+  if (analysisData && analysisData.conceptsIdentified && analysisData.conceptsIdentified.length > 0) {
+    return analysisData.conceptsIdentified;
+  }
+  
   // This is a simplified implementation
   // In a real application, you might use NLP or a predefined list of concepts per subject
   
   // Some example concept extraction for different subjects
   const conceptKeywords = {
-    "JavaScript": ["variables", "functions", "loops", "objects", "arrays", "async", "promises", "DOM"],
-    "Mathematics": ["algebra", "geometry", "calculus", "statistics", "trigonometry"],
-    "Science": ["physics", "chemistry", "biology", "astronomy"],
+    "JavaScript": ["variables", "functions", "loops", "objects", "arrays", "async", "promises", "DOM", "classes", "closures", "scope", "hoisting", "destructuring", "arrow functions", "callbacks", "event handling", "prototypes", "inheritance"],
+    "Python": ["variables", "functions", "loops", "objects", "lists", "dictionaries", "classes", "inheritance", "exceptions", "modules", "comprehensions", "decorators", "generators", "async", "file handling"],
+    "Mathematics": ["algebra", "geometry", "calculus", "statistics", "trigonometry", "probability", "derivatives", "integrals", "equations", "functions", "limits", "series"],
+    "Science": ["physics", "chemistry", "biology", "astronomy", "mechanics", "thermodynamics", "organic chemistry", "genetics", "ecology", "atomic structure"],
     // Add more subjects and concepts as needed
   };
   
   const subjectConcepts = conceptKeywords[subject] || [];
   const detectedConcepts = [];
   
+  // Enhanced concept detection with better matching
+  const lowerQuestionText = questionText.toLowerCase();
+  
   subjectConcepts.forEach(concept => {
-    if (questionText.toLowerCase().includes(concept.toLowerCase())) {
+    // Check for exact matches and variations
+    const conceptVariations = [
+      concept,
+      concept.replace(/s$/, ''), // Remove plural 's'
+      concept + 's', // Add plural 's'
+      concept.replace(/-/g, ' '), // Replace hyphens with spaces
+      concept.replace(/\s/g, '-'), // Replace spaces with hyphens
+    ];
+    
+    if (conceptVariations.some(variation => 
+      lowerQuestionText.includes(variation.toLowerCase())
+    )) {
       detectedConcepts.push(concept);
     }
   });
@@ -467,7 +541,7 @@ function extractConceptsFromQuestion(questionText, subject) {
   return detectedConcepts;
 }
 
-// Add this function to generate personalized learning resources
+// Add this function to generate personalized learning resources with valid links
 
 function generateLearningResources(quizData, conceptBreakdown) {
   // Create a map to store resources for each concept
@@ -486,7 +560,8 @@ function generateLearningResources(quizData, conceptBreakdown) {
             title: `Advanced ${conceptName} techniques`,
             description: `Explore cutting-edge approaches and advanced patterns in ${conceptName} to take your knowledge to the next level.`,
             type: "Advanced Tutorial",
-            difficulty: "Advanced"
+            difficulty: "Advanced",
+            url: generateValidResourceUrl(conceptName, quizData.subject, "advanced")
           }
         ]
       };
@@ -509,25 +584,28 @@ function generateLearningResources(quizData, conceptBreakdown) {
     // Generate a textbook or comprehensive guide
     resources.push({
       title: generateResourceTitle("book", conceptName, quizData.subject),
-      description: `A comprehensive guide that covers ${conceptName} fundamentals with clear explanations and examples${keyTerms.length > 0 ? `, including ${keyTerms.slice(0, 2).join(" and ")}` : ""}.`,
+      description: `A comprehensive guide that covers ${conceptName} fundamentals with clear explanations and examples${keyTerms.length > 0 ? `, including ${keyTerms.filter(term => term && term !== 'undefined').slice(0, 2).join(" and ")}` : ""}.`,
       type: "Book/Guide",
-      difficulty: masteryLevel === "Needs Improvement" ? "Beginner" : "Intermediate"
+      difficulty: masteryLevel === "Needs Improvement" ? "Beginner" : "Intermediate",
+      url: generateValidResourceUrl(conceptName, quizData.subject, "book")
     });
     
     // Generate an interactive tutorial
     resources.push({
       title: generateResourceTitle("tutorial", conceptName, quizData.subject),
-      description: `Step-by-step tutorial with hands-on exercises to practice ${conceptName}${keyTerms.length > 0 ? ` with focus on ${keyTerms[0]}` : ""}.`,
+      description: `Step-by-step tutorial with hands-on exercises to practice ${conceptName}${keyTerms.length > 0 && keyTerms.filter(term => term && term !== 'undefined').length > 0 ? ` with focus on ${keyTerms.filter(term => term && term !== 'undefined')[0]}` : ""}.`,
       type: "Interactive Tutorial",
-      difficulty: masteryLevel === "Needs Improvement" ? "Beginner" : "Intermediate"
+      difficulty: masteryLevel === "Needs Improvement" ? "Beginner" : "Intermediate",
+      url: generateValidResourceUrl(conceptName, quizData.subject, "tutorial")
     });
     
     // Generate a video course
     resources.push({
       title: generateResourceTitle("video", conceptName, quizData.subject),
-      description: `Visual explanations of ${conceptName} concepts with demonstrations${keyTerms.length > 0 ? ` and practical examples of ${keyTerms.join(", ")}` : ""}.`,
+      description: `Visual explanations of ${conceptName} concepts with demonstrations${keyTerms.length > 0 && keyTerms.filter(term => term && term !== 'undefined').length > 0 ? ` and practical examples of ${keyTerms.filter(term => term && term !== 'undefined').join(", ")}` : ""}.`,
       type: "Video Course",
-      difficulty: masteryLevel === "Needs Improvement" ? "Beginner" : "Intermediate"
+      difficulty: masteryLevel === "Needs Improvement" ? "Beginner" : "Intermediate",
+      url: generateValidResourceUrl(conceptName, quizData.subject, "video")
     });
     
     // If specific misconceptions were identified, add a targeted resource
@@ -536,7 +614,8 @@ function generateLearningResources(quizData, conceptBreakdown) {
         title: `Common Misconceptions in ${conceptName}`,
         description: `Addresses frequent mistakes and misconceptions in ${conceptName}, with clarifications on ${extractMisconceptionTopics(incorrectQuestions, conceptName).join(", ")}.`,
         type: "Practice Guide",
-        difficulty: "All Levels"
+        difficulty: "All Levels",
+        url: generateValidResourceUrl(conceptName, quizData.subject, "practice")
       });
     }
     
@@ -573,7 +652,7 @@ function extractKeyTerms(questions, concept) {
   // Find which keywords appear in the questions
   const keywords = conceptKeywords[concept.toLowerCase()] || [];
   const foundKeywords = keywords.filter(keyword => 
-    allText.toLowerCase().includes(keyword.toLowerCase())
+    keyword && allText.toLowerCase().includes(keyword.toLowerCase())
   );
   
   // If no specific keywords found, extract general terms
@@ -582,21 +661,24 @@ function extractKeyTerms(questions, concept) {
     const words = allText.toLowerCase()
       .replace(/[^\w\s]/g, '')
       .split(/\s+/)
-      .filter(word => word.length > 3 && !["the", "and", "that", "with", "this", "for", "you", "your"].includes(word));
+      .filter(word => word && word.length > 3 && !["the", "and", "that", "with", "this", "for", "you", "your"].includes(word));
     
     const wordCounts = {};
     words.forEach(word => {
-      wordCounts[word] = (wordCounts[word] || 0) + 1;
+      if (word && word !== 'undefined') {
+        wordCounts[word] = (wordCounts[word] || 0) + 1;
+      }
     });
     
     // Get the most frequent words
     return Object.entries(wordCounts)
       .sort((a, b) => b[1] - a[1])
       .slice(0, 3)
-      .map(([word]) => word);
+      .map(([word]) => word)
+      .filter(word => word && word !== 'undefined');
   }
   
-  return foundKeywords;
+  return foundKeywords.filter(keyword => keyword && keyword !== 'undefined');
 }
 
 // Helper function to extract misconception topics
@@ -689,4 +771,167 @@ function generateResourceTitle(type, concept, subject) {
   
   const options = titles[type] || titles.book;
   return options[Math.floor(Math.random() * options.length)];
+}
+
+// Helper function to generate valid resource URLs based on concept and subject
+function generateValidResourceUrl(concept, subject, type) {
+  // Normalize concept and subject for URL generation
+  const normalizedConcept = concept.toLowerCase().replace(/\s+/g, '-');
+  const normalizedSubject = subject.toLowerCase().replace(/\s+/g, '-');
+  
+  // Define base URLs for different types of resources
+  const resourceBases = {
+    "book": [
+      "https://developer.mozilla.org/en-US/docs/Web/JavaScript",
+      "https://javascript.info",
+      "https://www.w3schools.com",
+      "https://eloquentjavascript.net"
+    ],
+    "tutorial": [
+      "https://www.freecodecamp.org/learn",
+      "https://www.codecademy.com/learn",
+      "https://www.khanacademy.org/computing",
+      "https://scrimba.com"
+    ],
+    "video": [
+      "https://www.youtube.com/results?search_query=",
+      "https://www.coursera.org/search?query=",
+      "https://www.udemy.com/courses/search/?q=",
+      "https://egghead.io/q/"
+    ],
+    "practice": [
+      "https://leetcode.com/tag/",
+      "https://codewars.com/kata/search/",
+      "https://www.hackerrank.com/domains/",
+      "https://exercism.org/tracks/"
+    ],
+    "advanced": [
+      "https://github.com/topics/",
+      "https://stackoverflow.com/questions/tagged/",
+      "https://dev.to/t/",
+      "https://medium.com/search?q="
+    ]
+  };
+  
+  // Subject-specific URL mapping
+  const subjectMapping = {
+    "javascript": {
+      "book": [
+        "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Guide",
+        "https://javascript.info/",
+        "https://eloquentjavascript.net/",
+        "https://www.w3schools.com/js/"
+      ],
+      "tutorial": [
+        "https://www.freecodecamp.org/learn/javascript-algorithms-and-data-structures/",
+        "https://www.codecademy.com/learn/introduction-to-javascript",
+        "https://javascript30.com/",
+        "https://www.theodinproject.com/paths/full-stack-javascript"
+      ],
+      "video": [
+        `https://www.youtube.com/results?search_query=javascript+${normalizedConcept}+tutorial`,
+        `https://www.coursera.org/search?query=javascript+${normalizedConcept}`,
+        `https://egghead.io/q/javascript+${normalizedConcept}`,
+        `https://www.udemy.com/courses/search/?q=javascript+${normalizedConcept}`
+      ],
+      "practice": [
+        `https://leetcode.com/tag/javascript/`,
+        `https://www.hackerrank.com/domains/algorithms`,
+        `https://codewars.com/kata/search/javascript`,
+        `https://exercism.org/tracks/javascript`
+      ],
+      "advanced": [
+        `https://github.com/topics/javascript-${normalizedConcept}`,
+        `https://stackoverflow.com/questions/tagged/javascript+${normalizedConcept}`,
+        `https://dev.to/t/javascript`,
+        `https://medium.com/search?q=javascript+${normalizedConcept}`
+      ]
+    },
+    "python": {
+      "book": [
+        "https://docs.python.org/3/tutorial/",
+        "https://realpython.com/",
+        "https://automatetheboringstuff.com/",
+        "https://www.w3schools.com/python/"
+      ],
+      "tutorial": [
+        "https://www.freecodecamp.org/learn/scientific-computing-with-python/",
+        "https://www.codecademy.com/learn/learn-python-3",
+        "https://www.learnpython.org/",
+        "https://pythontutor.com/"
+      ],
+      "video": [
+        `https://www.youtube.com/results?search_query=python+${normalizedConcept}+tutorial`,
+        `https://www.coursera.org/search?query=python+${normalizedConcept}`,
+        `https://realpython.com/search?q=${normalizedConcept}`,
+        `https://www.udemy.com/courses/search/?q=python+${normalizedConcept}`
+      ],
+      "practice": [
+        `https://leetcode.com/tag/python/`,
+        `https://www.hackerrank.com/domains/python`,
+        `https://codewars.com/kata/search/python`,
+        `https://exercism.org/tracks/python`
+      ],
+      "advanced": [
+        `https://github.com/topics/python-${normalizedConcept}`,
+        `https://stackoverflow.com/questions/tagged/python+${normalizedConcept}`,
+        `https://dev.to/t/python`,
+        `https://medium.com/search?q=python+${normalizedConcept}`
+      ]
+    },
+    "mathematics": {
+      "book": [
+        "https://www.khanacademy.org/math",
+        "https://www.mathsisfun.com/",
+        "https://brilliant.org/math/",
+        "https://www.purplemath.com/"
+      ],
+      "tutorial": [
+        "https://www.khanacademy.org/math",
+        "https://www.coursera.org/browse/math-and-logic",
+        "https://www.edx.org/learn/mathematics",
+        "https://www.mathway.com/"
+      ],
+      "video": [
+        `https://www.youtube.com/results?search_query=mathematics+${normalizedConcept}+explained`,
+        `https://www.khanacademy.org/search?page_search_query=${normalizedConcept}`,
+        `https://www.coursera.org/search?query=mathematics+${normalizedConcept}`,
+        `https://brilliant.org/search/?q=${normalizedConcept}`
+      ],
+      "practice": [
+        `https://www.khanacademy.org/math`,
+        `https://brilliant.org/practice/`,
+        `https://www.mathway.com/`,
+        `https://www.wolframalpha.com/`
+      ],
+      "advanced": [
+        `https://mathoverflow.net/search?q=${normalizedConcept}`,
+        `https://math.stackexchange.com/search?q=${normalizedConcept}`,
+        `https://brilliant.org/wiki/${normalizedConcept}/`,
+        `https://www.youtube.com/results?search_query=advanced+mathematics+${normalizedConcept}`
+      ]
+    }
+  };
+  
+  // Get URLs for the specific subject and type, or fallback to general
+  const subjectUrls = subjectMapping[normalizedSubject]?.[type];
+  if (subjectUrls && subjectUrls.length > 0) {
+    return subjectUrls[Math.floor(Math.random() * subjectUrls.length)];
+  }
+  
+  // Fallback to general resource URLs
+  const generalUrls = resourceBases[type];
+  if (generalUrls && generalUrls.length > 0) {
+    const baseUrl = generalUrls[Math.floor(Math.random() * generalUrls.length)];
+    
+    // For search-based URLs, append the search term
+    if (baseUrl.includes("search") || baseUrl.includes("results") || baseUrl.includes("/q/")) {
+      return `${baseUrl}${normalizedSubject}+${normalizedConcept}`;
+    }
+    
+    return baseUrl;
+  }
+  
+  // Ultimate fallback
+  return `https://www.google.com/search?q=${normalizedSubject}+${normalizedConcept}+learn`;
 }

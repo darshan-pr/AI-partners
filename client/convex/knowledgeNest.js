@@ -1,0 +1,301 @@
+import { v } from "convex/values";
+import { query, mutation } from "./_generated/server";
+
+// Generate upload URL for file storage
+export const generateUploadUrl = mutation({
+  args: {},
+  handler: async (ctx, args) => {
+    return await ctx.storage.generateUploadUrl();
+  },
+});
+
+// Upload file metadata to knowledge nest
+export const uploadFileMetadata = mutation({
+  args: {
+    file_id: v.string(),
+    subject: v.string(),
+    filename: v.string(),
+    file_size: v.number(),
+    file_type: v.string(),
+    description: v.optional(v.string()),
+    username: v.string(),
+  },
+  handler: async (ctx, args) => {
+    try {
+      if (!args.username) {
+        return { success: false, message: "Username is required" };
+      }
+
+      // Get user's organization details
+      const orgData = await ctx.db
+        .query("org")
+        .filter((q) => q.eq(q.field("org_user"), args.username))
+        .first();
+
+      if (!orgData || !orgData.org_verified) {
+        return { success: false, message: "User organization not found or not verified" };
+      }
+
+      // Insert file metadata
+      const fileRecord = await ctx.db.insert("knowledge_nest", {
+        file_id: args.file_id,
+        organization_id: orgData._id,
+        class_sec: orgData.class_sec,
+        branch: orgData.branch,
+        uploaded_username: args.username,
+        subject: args.subject,
+        filename: args.filename,
+        file_size: args.file_size,
+        file_type: args.file_type,
+        upload_date: Date.now(),
+        description: args.description || "",
+        is_active: true,
+      });
+
+      return { 
+        success: true, 
+        message: "File uploaded successfully",
+        fileId: fileRecord 
+      };
+    } catch (error) {
+      console.error("Error uploading file metadata:", error);
+      return { success: false, message: "Failed to upload file metadata" };
+    }
+  },
+});
+
+// Get user's organization and class details for auto-fill
+export const getUserOrgDetails = query({
+  args: {
+    username: v.string(),
+  },
+  handler: async (ctx, args) => {
+    try {
+      const orgData = await ctx.db
+        .query("org")
+        .filter((q) => q.eq(q.field("org_user"), args.username))
+        .first();
+
+      if (!orgData || !orgData.org_verified) {
+        return { success: false, message: "Organization not found or not verified" };
+      }
+
+      return {
+        success: true,
+        data: {
+          organization_id: orgData._id,
+          org_name: orgData.org_name,
+          class_sec: orgData.class_sec,
+          branch: orgData.branch,
+          username: args.username,
+        }
+      };
+    } catch (error) {
+      console.error("Error fetching org details:", error);
+      return { success: false, message: "Failed to fetch organization details" };
+    }
+  },
+});
+
+// Get files for user's organization and class
+export const getKnowledgeNestFiles = query({
+  args: {
+    username: v.string(),
+    subject: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    try {
+      // Get user's organization details
+      const orgData = await ctx.db
+        .query("org")
+        .filter((q) => q.eq(q.field("org_user"), args.username))
+        .first();
+
+      if (!orgData || !orgData.org_verified) {
+        return { success: false, message: "Organization not found or not verified" };
+      }
+
+      // Query files for the same organization and class
+      let filesQuery = ctx.db
+        .query("knowledge_nest")
+        .filter((q) => 
+          q.and(
+            q.eq(q.field("organization_id"), orgData._id),
+            q.eq(q.field("class_sec"), orgData.class_sec),
+            q.eq(q.field("is_active"), true)
+          )
+        );
+
+      // Filter by subject if provided
+      if (args.subject) {
+        filesQuery = filesQuery.filter((q) => q.eq(q.field("subject"), args.subject));
+      }
+
+      const files = await filesQuery
+        .order("desc")
+        .collect();
+
+      return {
+        success: true,
+        files: files,
+        orgInfo: {
+          org_name: orgData.org_name,
+          class_sec: orgData.class_sec,
+          branch: orgData.branch,
+        }
+      };
+    } catch (error) {
+      console.error("Error fetching knowledge nest files:", error);
+      return { success: false, message: "Failed to fetch files" };
+    }
+  },
+});
+
+// Delete file (soft delete)
+export const deleteFile = mutation({
+  args: {
+    file_id: v.string(),
+    username: v.string(),
+  },
+  handler: async (ctx, args) => {
+    try {
+      // Find the file record
+      const fileRecord = await ctx.db
+        .query("knowledge_nest")
+        .filter((q) => q.eq(q.field("file_id"), args.file_id))
+        .first();
+
+      if (!fileRecord) {
+        return { success: false, message: "File not found" };
+      }
+
+      // Check if user is the uploader
+      if (fileRecord.uploaded_username !== args.username) {
+        return { success: false, message: "Unauthorized to delete this file" };
+      }
+
+      // Soft delete
+      await ctx.db.patch(fileRecord._id, {
+        is_active: false,
+      });
+
+      return { success: true, message: "File deleted successfully" };
+    } catch (error) {
+      console.error("Error deleting file:", error);
+      return { success: false, message: "Failed to delete file" };
+    }
+  },
+});
+
+// Get file download URL
+export const getFileUrl = query({
+  args: {
+    file_id: v.string(),
+    username: v.string(),
+  },
+  handler: async (ctx, args) => {
+    try {
+      // Get user's organization details
+      const orgData = await ctx.db
+        .query("org")
+        .filter((q) => q.eq(q.field("org_user"), args.username))
+        .first();
+
+      if (!orgData || !orgData.org_verified) {
+        return { success: false, message: "Organization not found or not verified" };
+      }
+
+      // Find the file record and verify access
+      const fileRecord = await ctx.db
+        .query("knowledge_nest")
+        .filter((q) => 
+          q.and(
+            q.eq(q.field("file_id"), args.file_id),
+            q.eq(q.field("organization_id"), orgData._id),
+            q.eq(q.field("class_sec"), orgData.class_sec),
+            q.eq(q.field("is_active"), true)
+          )
+        )
+        .first();
+
+      if (!fileRecord) {
+        return { success: false, message: "File not found or access denied" };
+      }
+
+      // Check if this is a real Convex storage ID or a demo file
+      let fileUrl;
+      if (args.file_id.startsWith('file_')) {
+        // This is a demo file, use mock URLs
+        if (fileRecord.file_type.startsWith('image/')) {
+          fileUrl = `https://picsum.photos/800/600?random=${args.file_id}`;
+        } else if (fileRecord.file_type.startsWith('video/')) {
+          fileUrl = `https://sample-videos.com/zip/10/mp4/SampleVideo_1280x720_1mb.mp4`;
+        } else if (fileRecord.file_type === 'application/pdf') {
+          fileUrl = `https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf`;
+        } else if (fileRecord.file_type.startsWith('text/')) {
+          fileUrl = `data:text/plain;charset=utf-8,Sample content for ${fileRecord.filename}%0A%0AThis is a demo text file.%0AFile ID: ${args.file_id}%0AUploaded by: ${fileRecord.uploaded_username}`;
+        } else {
+          fileUrl = `https://demo-files.example.com/${args.file_id}`;
+        }
+      } else {
+        // This is a real storage ID, get the actual URL
+        fileUrl = await ctx.storage.getUrl(args.file_id);
+        if (!fileUrl) {
+          return { success: false, message: "File not found in storage" };
+        }
+      }
+
+      return {
+        success: true,
+        url: fileUrl,
+        filename: fileRecord.filename,
+        file_type: fileRecord.file_type,
+      };
+    } catch (error) {
+      console.error("Error getting file URL:", error);
+      return { success: false, message: "Failed to get file URL" };
+    }
+  },
+});
+
+// Get subjects list for dropdown
+export const getSubjects = query({
+  args: {
+    username: v.string(),
+  },
+  handler: async (ctx, args) => {
+    try {
+      // Get user's organization details
+      const orgData = await ctx.db
+        .query("org")
+        .filter((q) => q.eq(q.field("org_user"), args.username))
+        .first();
+
+      if (!orgData || !orgData.org_verified) {
+        return { success: false, message: "Organization not found or not verified" };
+      }
+
+      // Get unique subjects from files in the same org and class
+      const files = await ctx.db
+        .query("knowledge_nest")
+        .filter((q) => 
+          q.and(
+            q.eq(q.field("organization_id"), orgData._id),
+            q.eq(q.field("class_sec"), orgData.class_sec),
+            q.eq(q.field("is_active"), true)
+          )
+        )
+        .collect();
+
+      const subjects = [...new Set(files.map(file => file.subject))];
+
+      return {
+        success: true,
+        subjects: subjects,
+      };
+    } catch (error) {
+      console.error("Error fetching subjects:", error);
+      return { success: false, message: "Failed to fetch subjects" };
+    }
+  },
+});

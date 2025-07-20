@@ -1,6 +1,46 @@
 import { v } from "convex/values";
 import { query, mutation } from "./_generated/server";
 
+// Store OTP for organization verification
+export const storeOrgOTP = mutation({
+  args: {
+    email: v.string(),
+    otp: v.string(),
+  },
+  handler: async (ctx, args) => {
+    try {
+      // Validate email domain
+      if (!args.email.endsWith("@reva.edu.in")) {
+        return { success: false, message: "Only @reva.edu.in domain is allowed" };
+      }
+
+      // Delete any existing OTP for this email
+      const existingOTPs = await ctx.db
+        .query("verification")
+        .filter((q) => q.eq(q.field("email"), args.email))
+        .collect();
+
+      for (const otp of existingOTPs) {
+        await ctx.db.delete(otp._id);
+      }
+
+      // Create new OTP record
+      const otpId = await ctx.db.insert("verification", {
+        email: args.email,
+        otp: args.otp,
+        createdAt: Date.now(),
+        expiresAt: Date.now() + 10 * 60 * 1000, // 10 minutes
+        isUsed: false,
+      });
+
+      return { success: true, message: "OTP stored successfully", id: otpId };
+    } catch (error) {
+      console.error("Error storing OTP:", error);
+      return { success: false, message: "Failed to store OTP" };
+    }
+  },
+});
+
 // Verify organization email OTP (separate from user auth OTP)
 export const verifyOrgOTP = mutation({
   args: {
@@ -125,10 +165,14 @@ export const getOrgByUser = query({
         .withIndex("by_org_user", (q) => q.eq("org_user", args.org_user))
         .first();
 
-      return orgRecord || null;
+      if (orgRecord) {
+        return { success: true, org: orgRecord };
+      } else {
+        return { success: false, message: "Organization record not found" };
+      }
     } catch (error) {
       console.error("Error fetching org record:", error);
-      return null;
+      return { success: false, message: "Failed to fetch organization record" };
     }
   },
 });
