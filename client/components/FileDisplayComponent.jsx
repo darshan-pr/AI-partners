@@ -21,7 +21,8 @@ import {
   Grid,
   List,
   Loader2,
-  AlertCircle
+  AlertCircle,
+  Upload
 } from 'lucide-react';
 
 const FileDisplayComponent = ({ 
@@ -47,6 +48,9 @@ const FileDisplayComponent = ({
 
   // Delete file mutation
   const deleteFile = useMutation(api.knowledgeNest.deleteFile);
+
+  // Download file query - we'll use it on demand
+  const [downloadingFile, setDownloadingFile] = useState(null);
 
   const getFileIcon = (fileType, size = 'w-6 h-6') => {
     if (fileType.startsWith('image/')) return <Image className={`${size} text-blue-500`} />;
@@ -76,28 +80,74 @@ const FileDisplayComponent = ({
 
   const handleDownload = async (fileId, filename) => {
     try {
-      // Use the same getFileUrl query to get the download URL
-      const response = await fetch(`/api/download?fileId=${fileId}&filename=${encodeURIComponent(filename)}`, {
-        method: 'GET',
+      setDownloadingFile(fileId);
+      
+      // Use the Convex download function
+      const downloadData = await fetch('/api/download', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          file_id: fileId,
+          username: username,
+        }),
       });
 
-      if (response.ok) {
-        const blob = await response.blob();
-        const url = window.URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = filename;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        window.URL.revokeObjectURL(url);
+      if (downloadData.ok) {
+        const result = await downloadData.json();
+        
+        if (result.success) {
+          // Create download link
+          const link = document.createElement('a');
+          link.href = result.downloadUrl;
+          link.download = result.filename;
+          
+          // Handle different types of URLs
+          if (result.downloadUrl.startsWith('data:')) {
+            // Data URL can be downloaded directly
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+          } else {
+            // External URL - open in new tab for download
+            link.target = '_blank';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+          }
+          
+          if (result.isDemo) {
+            alert(result.message || 'Demo file download simulated');
+          }
+        } else {
+          alert(result.message || 'Failed to download file');
+        }
       } else {
-        // For now, show a more user-friendly message
-        alert(`Download will be available once file storage is fully implemented.\nFile: ${filename}`);
+        // Fallback to the existing download method
+        const response = await fetch(`/api/download?fileId=${fileId}&filename=${encodeURIComponent(filename)}`, {
+          method: 'GET',
+        });
+
+        if (response.ok) {
+          const blob = await response.blob();
+          const url = window.URL.createObjectURL(blob);
+          const link = document.createElement('a');
+          link.href = url;
+          link.download = filename;
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          window.URL.revokeObjectURL(url);
+        } else {
+          alert(`Download functionality is being implemented.\nFile: ${filename}`);
+        }
       }
     } catch (error) {
       console.error('Download error:', error);
-      alert(`Download will be available once file storage is fully implemented.\nFile: ${filename}`);
+      alert(`Download functionality is being implemented.\nFile: ${filename}`);
+    } finally {
+      setDownloadingFile(null);
     }
   };
 
@@ -322,10 +372,15 @@ const FileDisplayComponent = ({
                   </button>
                   <button
                     onClick={() => handleDownload(file.file_id, file.filename)}
-                    className="flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-xl text-xs transition-all bg-blue-500/20 hover:bg-blue-500/30 text-blue-700 dark:text-blue-400 hover:scale-105"
+                    disabled={downloadingFile === file.file_id}
+                    className="flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-xl text-xs transition-all bg-blue-500/20 hover:bg-blue-500/30 text-blue-700 dark:text-blue-400 hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    <Download className="w-3 h-3" />
-                    Download
+                    {downloadingFile === file.file_id ? (
+                      <Loader2 className="w-3 h-3 animate-spin" />
+                    ) : (
+                      <Download className="w-3 h-3" />
+                    )}
+                    {downloadingFile === file.file_id ? 'Downloading...' : 'Download'}
                   </button>
                   {file.uploaded_username === username && (
                     <button
@@ -391,10 +446,15 @@ const FileDisplayComponent = ({
                     </button>
                     <button
                       onClick={() => handleDownload(file.file_id, file.filename)}
-                      className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm transition-all bg-blue-500/20 hover:bg-blue-500/30 text-blue-700 dark:text-blue-400 hover:scale-105"
+                      disabled={downloadingFile === file.file_id}
+                      className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm transition-all bg-blue-500/20 hover:bg-blue-500/30 text-blue-700 dark:text-blue-400 hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                      <Download className="w-4 h-4" />
-                      Download
+                      {downloadingFile === file.file_id ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <Download className="w-4 h-4" />
+                      )}
+                      {downloadingFile === file.file_id ? 'Downloading...' : 'Download'}
                     </button>
                     {file.uploaded_username === username && (
                       <button

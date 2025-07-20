@@ -310,3 +310,92 @@ export const getSubjects = query({
     }
   },
 });
+
+// Download file with proper access control
+export const downloadFile = query({
+  args: {
+    file_id: v.string(),
+    username: v.string(),
+  },
+  handler: async (ctx, args) => {
+    try {
+      // Get user's organization details
+      const orgData = await ctx.db
+        .query("org")
+        .filter((q) => q.eq(q.field("org_user"), args.username))
+        .first();
+
+      if (!orgData || !orgData.org_verified) {
+        return { success: false, message: "Organization not found or not verified" };
+      }
+
+      // Find the file record and verify access
+      const fileRecord = await ctx.db
+        .query("knowledge_nest")
+        .filter((q) => 
+          q.and(
+            q.eq(q.field("file_id"), args.file_id),
+            q.eq(q.field("organization_id"), orgData._id),
+            q.eq(q.field("class_sec"), orgData.class_sec),
+            q.eq(q.field("is_active"), true)
+          )
+        )
+        .first();
+
+      if (!fileRecord) {
+        return { success: false, message: "File not found or access denied" };
+      }
+
+      // Get the download URL
+      let downloadUrl;
+      let isDemo = false;
+      
+      if (args.file_id.startsWith('file_')) {
+        // This is a demo file
+        isDemo = true;
+        if (fileRecord.file_type.startsWith('image/')) {
+          downloadUrl = `https://picsum.photos/1920/1080?random=${args.file_id}`;
+        } else if (fileRecord.file_type.startsWith('video/')) {
+          downloadUrl = `https://sample-videos.com/zip/10/mp4/SampleVideo_1280x720_5mb.mp4`;
+        } else if (fileRecord.file_type === 'application/pdf') {
+          downloadUrl = `https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf`;
+        } else if (fileRecord.file_type.startsWith('text/')) {
+          // Create a data URL for text files
+          const textContent = `Sample content for ${fileRecord.filename}\n\nThis is a demo text file from Knowledge Nest.\n\nFile Details:\n- File ID: ${args.file_id}\n- Uploaded by: ${fileRecord.uploaded_username}\n- Subject: ${fileRecord.subject}\n- Upload Date: ${new Date(fileRecord.upload_date).toLocaleString()}\n- File Size: ${fileRecord.file_size} bytes\n\nThis is demonstration content. In a real implementation, this would contain the actual file content.`;
+          downloadUrl = `data:text/plain;charset=utf-8,${encodeURIComponent(textContent)}`;
+        } else {
+          // For other file types, create a mock download
+          downloadUrl = `https://via.placeholder.com/400x300/007bff/ffffff?text=Demo+File+${encodeURIComponent(fileRecord.filename)}`;
+        }
+      } else {
+        // This is a real storage ID, get the actual URL
+        downloadUrl = await ctx.storage.getUrl(args.file_id);
+        if (!downloadUrl) {
+          return { success: false, message: "File not found in storage" };
+        }
+      }
+
+      // Log the download activity (optional)
+      const downloadLog = {
+        file_id: args.file_id,
+        downloaded_by: args.username,
+        download_date: Date.now(),
+        filename: fileRecord.filename,
+        uploader: fileRecord.uploaded_username,
+      };
+
+      return {
+        success: true,
+        downloadUrl: downloadUrl,
+        filename: fileRecord.filename,
+        file_type: fileRecord.file_type,
+        file_size: fileRecord.file_size,
+        isDemo: isDemo,
+        message: isDemo ? "Demo file - download functionality simulated" : "File ready for download"
+      };
+    } catch (error) {
+      console.error("Error preparing file download:", error);
+      return { success: false, message: "Failed to prepare file download" };
+    }
+  },
+});
