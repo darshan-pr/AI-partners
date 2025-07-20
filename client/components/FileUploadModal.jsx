@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { useMutation } from 'convex/react';
 import { api } from '@/convex/_generated/api';
 import { 
@@ -35,6 +36,26 @@ const FileUploadModal = ({
   const fileInputRef = useRef(null);
   const uploadFileMetadata = useMutation(api.knowledgeNest.uploadFileMetadata);
   const generateUploadUrl = useMutation(api.knowledgeNest.generateUploadUrl);
+
+  // Handle ESC key to close modal and prevent body scroll
+  useEffect(() => {
+    const handleKeyDown = (event) => {
+      if (event.key === 'Escape' && isOpen && !uploading) {
+        handleClose();
+      }
+    };
+
+    if (isOpen) {
+      document.addEventListener('keydown', handleKeyDown);
+      // Prevent body scroll when modal is open
+      document.body.style.overflow = 'hidden';
+    }
+
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+      document.body.style.overflow = 'unset';
+    };
+  }, [isOpen, uploading]);
 
   // Common subjects for computer science
   const commonSubjects = [
@@ -205,11 +226,41 @@ const FileUploadModal = ({
 
   if (!isOpen) return null;
 
-  return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className={`w-full max-w-2xl rounded-xl shadow-2xl ${
-        isDark ? 'bg-gray-900 text-white' : 'bg-white text-gray-900'
-      } max-h-[90vh] overflow-y-auto`}>
+  // Create portal content for perfect centering
+  const modalContent = (
+    <div 
+      className="fixed inset-0 bg-black bg-opacity-75 z-[9999]"
+      style={{ 
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: '1rem',
+        margin: 0,
+        zIndex: 9999
+      }}
+      onClick={(e) => {
+        // Close modal when clicking backdrop (only if not uploading)
+        if (e.target === e.currentTarget && !uploading) {
+          handleClose();
+        }
+      }}
+    >
+      <div 
+        className={`w-full max-w-2xl rounded-xl shadow-2xl overflow-hidden ${
+          isDark ? 'bg-gray-900 text-white' : 'bg-white text-gray-900'
+        }`}
+        style={{
+          maxHeight: '90vh',
+          overflowY: 'auto',
+          position: 'relative'
+        }}
+        onClick={(e) => e.stopPropagation()}
+      >
         {/* Header */}
         <div className={`p-6 border-b ${isDark ? 'border-gray-700' : 'border-gray-200'}`}>
           <div className="flex items-center justify-between">
@@ -425,6 +476,11 @@ const FileUploadModal = ({
       </div>
     </div>
   );
+
+  // Use React Portal to render modal at document root level for perfect centering
+  return typeof window !== 'undefined' 
+    ? createPortal(modalContent, document.body)
+    : null;
 };
 
 export default FileUploadModal;
