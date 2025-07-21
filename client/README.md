@@ -202,24 +202,7 @@ const knowledgeNest = {
 
 We welcome contributions from the community! Please read our [Contributing Guidelines](CONTRIBUTING.md) for details on how to submit pull requests, report issues, and contribute to the project.
 
-### Development Guidelines
 
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add some amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
-
-## 📄 License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## 📞 Support
-
-- **Documentation**: [Project Wiki](wiki-link)
-- **Issues**: [GitHub Issues](issues-link)
-- **Discussions**: [GitHub Discussions](discussions-link)
-- **Email**: support@ai-partner.com
 
 ## 🙏 Acknowledgments
 
