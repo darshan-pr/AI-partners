@@ -202,4 +202,5 @@ export default defineSchema({
     .index("by_upload_date", ["upload_date"])
     .index("by_org_semester", ["organization_id", "semester"])
     .index("by_semester_only", ["semester"])
+    .index("by_org_branch_semester", ["organization_id", "branch", "semester"]) // Compound index for optimal filtering
 });

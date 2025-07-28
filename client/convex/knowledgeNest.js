@@ -109,7 +109,7 @@ export const getUserOrgDetails = query({
   },
 });
 
-// Get files for user's semester only (not organization and class)
+// Get files for user's organization, branch, and semester
 export const getKnowledgeNestFiles = query({
   args: {
     username: v.string(),
@@ -127,12 +127,14 @@ export const getKnowledgeNestFiles = query({
         return { success: false, message: "Organization not found or not verified" };
       }
 
-      // Query files for the same semester only (not organization specific)
+      // Query files for the same organization, branch, and semester
       let filesQuery = ctx.db
         .query("knowledge_nest")
         .filter((q) => 
           q.and(
-            q.eq(q.field("semester"), orgData.semester), // Filter by semester only
+            q.eq(q.field("organization_id"), orgData._id), // Same organization
+            q.eq(q.field("branch"), orgData.branch), // Same branch
+            q.eq(q.field("semester"), orgData.semester), // Same semester
             q.eq(q.field("is_active"), true)
           )
         );
@@ -217,13 +219,15 @@ export const getFileUrl = query({
         return { success: false, message: "Organization not found or not verified" };
       }
 
-      // Find the file record and verify access (semester only)
+      // Find the file record and verify access (organization, branch, and semester)
       const fileRecord = await ctx.db
         .query("knowledge_nest")
         .filter((q) => 
           q.and(
             q.eq(q.field("file_id"), args.file_id),
-            q.eq(q.field("semester"), orgData.semester), // Filter by semester only
+            q.eq(q.field("organization_id"), orgData._id), // Same organization
+            q.eq(q.field("branch"), orgData.branch), // Same branch
+            q.eq(q.field("semester"), orgData.semester), // Same semester
             q.eq(q.field("is_active"), true)
           )
         )
@@ -286,12 +290,14 @@ export const getSubjects = query({
         return { success: false, message: "Organization not found or not verified" };
       }
 
-      // Get unique subjects from files in the same semester
+      // Get unique subjects from files in the same organization, branch, and semester
       const files = await ctx.db
         .query("knowledge_nest")
         .filter((q) => 
           q.and(
-            q.eq(q.field("semester"), orgData.semester), // Filter by semester only
+            q.eq(q.field("organization_id"), orgData._id), // Same organization
+            q.eq(q.field("branch"), orgData.branch), // Same branch
+            q.eq(q.field("semester"), orgData.semester), // Same semester
             q.eq(q.field("is_active"), true)
           )
         )
@@ -328,13 +334,15 @@ export const downloadFile = query({
         return { success: false, message: "Organization not found or not verified" };
       }
 
-      // Find the file record and verify access (semester only)
+      // Find the file record and verify access (organization, branch, and semester)
       const fileRecord = await ctx.db
         .query("knowledge_nest")
         .filter((q) => 
           q.and(
             q.eq(q.field("file_id"), args.file_id),
-            q.eq(q.field("semester"), orgData.semester), // Filter by semester only
+            q.eq(q.field("organization_id"), orgData._id), // Same organization
+            q.eq(q.field("branch"), orgData.branch), // Same branch
+            q.eq(q.field("semester"), orgData.semester), // Same semester
             q.eq(q.field("is_active"), true)
           )
         )
