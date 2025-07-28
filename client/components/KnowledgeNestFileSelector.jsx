@@ -14,6 +14,7 @@ import {
   Image, 
   FileVideo, 
   Archive,
+  Music,
   Calendar,
   User,
   BookOpen,
@@ -70,8 +71,9 @@ const KnowledgeNestFileSelector = ({
     
     if (fileType.startsWith('image/')) return <Image className={`${size} text-blue-500`} />;
     if (fileType.startsWith('video/')) return <FileVideo className={`${size} text-purple-500`} />;
-    if (fileType.includes('pdf') || fileType.includes('document')) return <FileText className={`${size} text-red-500`} />;
-    if (fileType.includes('zip') || fileType.includes('rar')) return <Archive className={`${size} text-yellow-500`} />;
+    if (fileType.startsWith('audio/')) return <Music className={`${size} text-green-500`} />;
+    if (fileType.includes('pdf') || fileType.includes('document') || fileType.includes('sheet') || fileType.includes('presentation')) return <FileText className={`${size} text-red-500`} />;
+    if (fileType.includes('zip') || fileType.includes('rar') || fileType.includes('7z')) return <Archive className={`${size} text-yellow-500`} />;
     return <File className={`${size} text-gray-500`} />;
   };
 
@@ -194,7 +196,7 @@ const KnowledgeNestFileSelector = ({
                       {filesData.orgInfo?.org_name || 'Organization'}
                     </h4>
                     <p className={`text-xs sm:text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
-                      Class: {filesData.orgInfo?.class_sec || 'N/A'} • Branch: {filesData.orgInfo?.branch || 'N/A'}
+                      Semester: {filesData.orgInfo?.semester || 'N/A'} • Branch: {filesData.orgInfo?.branch || 'N/A'}
                     </p>
                   </div>
                 </div>

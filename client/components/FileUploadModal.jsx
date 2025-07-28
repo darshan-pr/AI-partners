@@ -12,6 +12,7 @@ import {
   Image, 
   FileVideo, 
   Archive,
+  Music,
   Loader2,
   CheckCircle,
   XCircle,
@@ -81,8 +82,9 @@ const FileUploadModal = ({
   const getFileIcon = (fileType) => {
     if (fileType.startsWith('image/')) return <Image className="w-6 h-6 text-blue-500" />;
     if (fileType.startsWith('video/')) return <FileVideo className="w-6 h-6 text-purple-500" />;
-    if (fileType.includes('pdf') || fileType.includes('document')) return <FileText className="w-6 h-6 text-red-500" />;
-    if (fileType.includes('zip') || fileType.includes('rar')) return <Archive className="w-6 h-6 text-yellow-500" />;
+    if (fileType.startsWith('audio/')) return <Music className="w-6 h-6 text-green-500" />;
+    if (fileType.includes('pdf') || fileType.includes('document') || fileType.includes('sheet') || fileType.includes('presentation')) return <FileText className="w-6 h-6 text-red-500" />;
+    if (fileType.includes('zip') || fileType.includes('rar') || fileType.includes('7z')) return <Archive className="w-6 h-6 text-yellow-500" />;
     return <File className="w-6 h-6 text-gray-500" />;
   };
 
@@ -128,25 +130,34 @@ const FileUploadModal = ({
       'application/pdf',
       'application/msword',
       'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      'application/vnd.ms-excel',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
       'application/vnd.ms-powerpoint',
       'application/vnd.openxmlformats-officedocument.presentationml.presentation',
       'text/plain',
+      'text/csv',
       'image/jpeg',
       'image/png',
       'image/gif',
+      'image/webp',
       'video/mp4',
       'video/avi',
       'video/mov',
+      'video/webm',
+      'audio/mp3',
+      'audio/wav',
+      'audio/mpeg',
       'application/zip',
-      'application/x-rar-compressed'
+      'application/x-rar-compressed',
+      'application/x-7z-compressed'
     ];
 
     if (file.size > maxSize) {
-      return 'File size must be less than 50MB';
+      return `File size must be less than 50MB (current: ${formatFileSize(file.size)})`;
     }
 
     if (!allowedTypes.includes(file.type)) {
-      return 'File type not allowed. Please upload PDF, Word, PowerPoint, images, videos, or archive files.';
+      return 'File type not allowed. Please upload PDF, Word, Excel, PowerPoint, text files, images, videos, audio, or archive files.';
     }
 
     return null;
@@ -193,11 +204,17 @@ const FileUploadModal = ({
         file_size: selectedFile.size,
         file_type: selectedFile.type,
         description: description.trim(),
-        username: userOrgDetails.username,
+        username: userOrgDetails.org_user,
       });
 
       if (result.success) {
         setUploadStatus('success');
+        // Clear the form immediately to show success
+        setSelectedFile(null);
+        setSubject('');
+        setDescription('');
+        setError('');
+        
         setTimeout(() => {
           onUploadSuccess();
           handleClose();
@@ -291,10 +308,10 @@ const FileUploadModal = ({
                 <span className={`${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Organization:</span>
                 <p className="font-medium">{userOrgDetails.org_name}</p>
               </div>
-              <div>
-                <span className={`${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Class/Section:</span>
-                <p className="font-medium">{userOrgDetails.class_sec}</p>
-              </div>
+                              <div>
+                  <span className={`${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Semester:</span>
+                  <p className="font-medium">Semester {userOrgDetails.semester}</p>
+                </div>
               <div>
                 <span className={`${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Branch:</span>
                 <p className="font-medium">{userOrgDetails.branch}</p>
