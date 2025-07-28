@@ -51,7 +51,6 @@ export const uploadFileMetadata = mutation({
       const fileRecord = await ctx.db.insert("knowledge_nest", {
         file_id: args.file_id,
         organization_id: orgData._id,
-        class_sec: orgData.class_sec,
         semester: orgData.semester, // Add semester field
         branch: orgData.branch,
         uploaded_username: args.username,
@@ -97,7 +96,7 @@ export const getUserOrgDetails = query({
         data: {
           organization_id: orgData._id,
           org_name: orgData.org_name,
-          class_sec: orgData.class_sec,
+          semester: orgData.semester,
           branch: orgData.branch,
           username: args.username,
         }
@@ -153,7 +152,6 @@ export const getKnowledgeNestFiles = query({
         files: files,
         orgInfo: {
           org_name: orgData.org_name,
-          class_sec: orgData.class_sec,
           semester: orgData.semester,
           branch: orgData.branch,
         }

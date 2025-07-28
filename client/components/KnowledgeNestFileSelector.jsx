@@ -194,7 +194,7 @@ const KnowledgeNestFileSelector = ({
                       {filesData.orgInfo?.org_name || 'Organization'}
                     </h4>
                     <p className={`text-xs sm:text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
-                      Class: {filesData.orgInfo?.class_sec || 'N/A'} • Branch: {filesData.orgInfo?.branch || 'N/A'}
+                      Semester: {filesData.orgInfo?.semester || 'N/A'} • Branch: {filesData.orgInfo?.branch || 'N/A'}
                     </p>
                   </div>
                 </div>

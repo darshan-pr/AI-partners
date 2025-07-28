@@ -14,7 +14,6 @@ const OrgVerification = ({ user, onVerificationSuccess, isDark }) => {
     org_mail: '',
     otp: '',
     org_name: '',
-    class_sec: '',
     semester: '', // Add semester field
     branch: ''
   });
@@ -94,7 +93,7 @@ const OrgVerification = ({ user, onVerificationSuccess, isDark }) => {
   };
 
   const handleSubmitDetails = async () => {
-    if (!formData.org_name || !formData.class_sec || !formData.semester || !formData.branch) {
+    if (!formData.org_name || !formData.semester || !formData.branch) {
       setError('Please fill in all required fields');
       return;
     }
@@ -107,7 +106,6 @@ const OrgVerification = ({ user, onVerificationSuccess, isDark }) => {
         org_name: formData.org_name,
         org_user: user.username,
         org_mail: formData.org_mail,
-        class_sec: formData.class_sec,
         semester: formData.semester, // Include semester
         branch: formData.branch
       });
@@ -295,19 +293,6 @@ const OrgVerification = ({ user, onVerificationSuccess, isDark }) => {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Class/Section
-                </label>
-                <input
-                  type="text"
-                  value={formData.class_sec}
-                  onChange={(e) => handleInputChange('class_sec', e.target.value)}
-                  placeholder="e.g., 4th Year, Section A"
-                  className="w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   Semester
                 </label>
                 <select
@@ -342,7 +327,7 @@ const OrgVerification = ({ user, onVerificationSuccess, isDark }) => {
 
               <button
                 onClick={handleSubmitDetails}
-                disabled={loading || !formData.org_name || !formData.class_sec || !formData.semester || !formData.branch}
+                disabled={loading || !formData.org_name || !formData.semester || !formData.branch}
                 className="w-full bg-gradient-to-r from-indigo-500 to-blue-500 text-white font-medium py-3 px-6 rounded-xl hover:from-indigo-600 hover:to-blue-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {loading ? 'Saving...' : 'Complete Verification'}
@@ -407,7 +392,7 @@ const KnowledgeNestDashboard = ({ user, isDark }) => {
         </div>
 
         {/* Organization Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
           <div className="glass-card rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all hover:-translate-y-1">
             <div className="flex items-center gap-4">
               <div className="p-3 bg-blue-100 dark:bg-blue-900/30 rounded-xl">
@@ -417,20 +402,6 @@ const KnowledgeNestDashboard = ({ user, isDark }) => {
                 <h3 className="font-semibold text-lg text-gray-900 dark:text-gray-100">Organization</h3>
                 <p className="text-gray-600 dark:text-gray-400 text-sm">
                   {userOrgDetails?.org?.org_name || 'Loading...'}
-                </p>
-              </div>
-            </div>
-          </div>
-
-          <div className="glass-card rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all hover:-translate-y-1">
-            <div className="flex items-center gap-4">
-              <div className="p-3 bg-green-100 dark:bg-green-900/30 rounded-xl">
-                <Users className="w-6 h-6 text-green-600" />
-              </div>
-              <div>
-                <h3 className="font-semibold text-lg text-gray-900 dark:text-gray-100">Class</h3>
-                <p className="text-gray-600 dark:text-gray-400 text-sm">
-                  {userOrgDetails?.org?.class_sec || 'Loading...'}
                 </p>
               </div>
             </div>

@@ -36,7 +36,6 @@ export default defineSchema({
     org_user: v.string(), // Username from localStorage
     org_mail: v.string(),
     org_verified: v.boolean(),
-    class_sec: v.string(),
     semester: v.string(), // Add semester field
     branch: v.string(),
     createdAt: v.number(),
@@ -182,7 +181,6 @@ export default defineSchema({
   knowledge_nest: defineTable({
     file_id: v.string(), // Convex file storage ID
     organization_id: v.string(), // Reference to org table
-    class_sec: v.string(),
     semester: v.string(), // Add semester field for filtering
     branch: v.string(),
     uploaded_username: v.string(),
@@ -194,7 +192,6 @@ export default defineSchema({
     description: v.optional(v.string()),
     is_active: v.boolean(), // For soft delete
   }).index("by_organization", ["organization_id"])
-    .index("by_class_sec", ["class_sec"])
     .index("by_semester", ["semester"])
     .index("by_branch", ["branch"])
     .index("by_username", ["uploaded_username"])
