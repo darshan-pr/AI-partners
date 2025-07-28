@@ -211,7 +211,7 @@ const FileDisplayComponent = ({
         <div className="glass-card rounded-2xl p-6">
           <h3 className="font-semibold text-lg text-gray-900 dark:text-gray-100 mb-2">📚 Knowledge Nest - {filesData.orgInfo?.org_name || 'Organization'}</h3>
           <p className="text-gray-600 dark:text-gray-400">
-            Class: {filesData.orgInfo?.class_sec || 'N/A'} • Branch: {filesData.orgInfo?.branch || 'N/A'}
+                                  Semester: {filesData.orgInfo?.semester || 'N/A'} • Branch: {filesData.orgInfo?.branch || 'N/A'}
           </p>
         </div>
       )}

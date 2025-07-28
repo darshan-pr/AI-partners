@@ -107,7 +107,7 @@ export const createOrUpdateOrg = mutation({
     org_name: v.string(),
     org_user: v.string(),
     org_mail: v.string(),
-    class_sec: v.string(),
+    semester: v.string(), // Changed from class_sec to semester
     branch: v.string(),
   },
   handler: async (ctx, args) => {
@@ -115,6 +115,12 @@ export const createOrUpdateOrg = mutation({
       // Validate email domain
       if (!args.org_mail.endsWith("@reva.edu.in")) {
         return { success: false, message: "Only @reva.edu.in domain is allowed" };
+      }
+
+      // Validate semester (1-8)
+      const semesterNum = parseInt(args.semester);
+      if (isNaN(semesterNum) || semesterNum < 1 || semesterNum > 8) {
+        return { success: false, message: "Semester must be between 1 and 8" };
       }
 
       // Check if org already exists for this user
@@ -128,7 +134,7 @@ export const createOrUpdateOrg = mutation({
         await ctx.db.patch(existingOrg._id, {
           org_name: args.org_name,
           org_mail: args.org_mail,
-          class_sec: args.class_sec,
+          semester: args.semester,
           branch: args.branch,
           org_verified: true,
           verifiedAt: Date.now(),
@@ -141,7 +147,7 @@ export const createOrUpdateOrg = mutation({
           org_user: args.org_user,
           org_mail: args.org_mail,
           org_verified: true,
-          class_sec: args.class_sec,
+          semester: args.semester,
           branch: args.branch,
           createdAt: Date.now(),
           verifiedAt: Date.now(),

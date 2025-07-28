@@ -14,7 +14,7 @@ const OrgVerification = ({ user, onVerificationSuccess, isDark }) => {
     org_mail: '',
     otp: '',
     org_name: '',
-    class_sec: '',
+    semester: '',
     branch: ''
   });
   const [loading, setLoading] = useState(false);
@@ -93,8 +93,15 @@ const OrgVerification = ({ user, onVerificationSuccess, isDark }) => {
   };
 
   const handleSubmitDetails = async () => {
-    if (!formData.org_name || !formData.class_sec || !formData.branch) {
+    if (!formData.org_name || !formData.semester || !formData.branch) {
       setError('Please fill in all required fields');
+      return;
+    }
+
+    // Validate semester
+    const semesterNum = parseInt(formData.semester);
+    if (isNaN(semesterNum) || semesterNum < 1 || semesterNum > 8) {
+      setError('Semester must be between 1 and 8');
       return;
     }
 
@@ -106,7 +113,7 @@ const OrgVerification = ({ user, onVerificationSuccess, isDark }) => {
         org_name: formData.org_name,
         org_user: user.username,
         org_mail: formData.org_mail,
-        class_sec: formData.class_sec,
+        semester: formData.semester,
         branch: formData.branch
       });
 
@@ -293,15 +300,20 @@ const OrgVerification = ({ user, onVerificationSuccess, isDark }) => {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Class/Section
+                  Semester (1-8)
                 </label>
-                <input
-                  type="text"
-                  value={formData.class_sec}
-                  onChange={(e) => handleInputChange('class_sec', e.target.value)}
-                  placeholder="e.g., 4th Year, Section A"
+                <select
+                  value={formData.semester}
+                  onChange={(e) => handleInputChange('semester', e.target.value)}
                   className="w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                />
+                >
+                  <option value="">Select Semester</option>
+                  {[1, 2, 3, 4, 5, 6, 7, 8].map(sem => (
+                    <option key={sem} value={sem.toString()}>
+                      Semester {sem}
+                    </option>
+                  ))}
+                </select>
               </div>
 
               <div>
@@ -319,7 +331,7 @@ const OrgVerification = ({ user, onVerificationSuccess, isDark }) => {
 
               <button
                 onClick={handleSubmitDetails}
-                disabled={loading || !formData.org_name || !formData.class_sec || !formData.branch}
+                disabled={loading || !formData.org_name || !formData.semester || !formData.branch}
                 className="w-full bg-gradient-to-r from-indigo-500 to-blue-500 text-white font-medium py-3 px-6 rounded-xl hover:from-indigo-600 hover:to-blue-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {loading ? 'Saving...' : 'Complete Verification'}
@@ -359,7 +371,7 @@ const KnowledgeNestDashboard = ({ user, isDark }) => {
   }
 
   return (
-    <div className={`min-h-screen p-6 pt-24 relative z-10`}>
+    <div className={`min-h-screen p-6 pt-24 relative z-10 transition-colors duration-300`}>
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="text-center mb-8">
@@ -385,7 +397,7 @@ const KnowledgeNestDashboard = ({ user, isDark }) => {
 
         {/* Organization Stats */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          <div className="glass-card rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all hover:-translate-y-1">
+          <div className="glass-card rounded-2xl p-6 shadow-md hover:shadow-lg transition-all transform hover:-translate-y-1">
             <div className="flex items-center gap-4">
               <div className="p-3 bg-blue-100 dark:bg-blue-900/30 rounded-xl">
                 <FileText className="w-6 h-6 text-blue-600" />
@@ -399,21 +411,21 @@ const KnowledgeNestDashboard = ({ user, isDark }) => {
             </div>
           </div>
 
-          <div className="glass-card rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all hover:-translate-y-1">
+          <div className="glass-card rounded-2xl p-6 shadow-md hover:shadow-lg transition-all transform hover:-translate-y-1">
             <div className="flex items-center gap-4">
               <div className="p-3 bg-green-100 dark:bg-green-900/30 rounded-xl">
                 <Users className="w-6 h-6 text-green-600" />
               </div>
               <div>
-                <h3 className="font-semibold text-lg text-gray-900 dark:text-gray-100">Class</h3>
+                <h3 className="font-semibold text-lg text-gray-900 dark:text-gray-100">Semester</h3>
                 <p className="text-gray-600 dark:text-gray-400 text-sm">
-                  {userOrgDetails?.org?.class_sec || 'Loading...'}
+                  {userOrgDetails?.org?.semester ? `Semester ${userOrgDetails.org.semester}` : 'Loading...'}
                 </p>
               </div>
             </div>
           </div>
 
-          <div className="glass-card rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all hover:-translate-y-1">
+          <div className="glass-card rounded-2xl p-6 shadow-md hover:shadow-lg transition-all transform hover:-translate-y-1">
             <div className="flex items-center gap-4">
               <div className="p-3 bg-purple-100 dark:bg-purple-900/30 rounded-xl">
                 <BookOpen className="w-6 h-6 text-purple-600" />
@@ -711,7 +723,7 @@ export default function KnowledgeNestPage() {
   // Main Knowledge Nest Interface - Show Dashboard
   return (
     <ProtectedRoute>
-      <div className={`min-h-screen transition-colors duration-500 ${
+      <div className={`min-h-screen transition-colors duration-300 ${
         isDark 
           ? 'bg-black' 
           : 'bg-gradient-to-br from-blue-50 via-white to-purple-50'
