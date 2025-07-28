@@ -15,6 +15,7 @@ const OrgVerification = ({ user, onVerificationSuccess, isDark }) => {
     otp: '',
     org_name: '',
     class_sec: '',
+    semester: '', // Add semester field
     branch: ''
   });
   const [loading, setLoading] = useState(false);
@@ -93,7 +94,7 @@ const OrgVerification = ({ user, onVerificationSuccess, isDark }) => {
   };
 
   const handleSubmitDetails = async () => {
-    if (!formData.org_name || !formData.class_sec || !formData.branch) {
+    if (!formData.org_name || !formData.class_sec || !formData.semester || !formData.branch) {
       setError('Please fill in all required fields');
       return;
     }
@@ -107,6 +108,7 @@ const OrgVerification = ({ user, onVerificationSuccess, isDark }) => {
         org_user: user.username,
         org_mail: formData.org_mail,
         class_sec: formData.class_sec,
+        semester: formData.semester, // Include semester
         branch: formData.branch
       });
 

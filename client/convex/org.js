@@ -108,6 +108,7 @@ export const createOrUpdateOrg = mutation({
     org_user: v.string(),
     org_mail: v.string(),
     class_sec: v.string(),
+    semester: v.string(), // Add semester parameter
     branch: v.string(),
   },
   handler: async (ctx, args) => {
@@ -129,6 +130,7 @@ export const createOrUpdateOrg = mutation({
           org_name: args.org_name,
           org_mail: args.org_mail,
           class_sec: args.class_sec,
+          semester: args.semester,
           branch: args.branch,
           org_verified: true,
           verifiedAt: Date.now(),
@@ -142,6 +144,7 @@ export const createOrUpdateOrg = mutation({
           org_mail: args.org_mail,
           org_verified: true,
           class_sec: args.class_sec,
+          semester: args.semester,
           branch: args.branch,
           createdAt: Date.now(),
           verifiedAt: Date.now(),
