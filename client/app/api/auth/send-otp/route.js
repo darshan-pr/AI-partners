@@ -3,7 +3,11 @@ import nodemailer from 'nodemailer';
 import { ConvexHttpClient } from "convex/browser";
 import { api } from "@/convex/_generated/api";
 
-const convex = new ConvexHttpClient(process.env.NEXT_PUBLIC_CONVEX_URL);
+// Initialize Convex client only if URL is available
+let convex = null;
+if (process.env.NEXT_PUBLIC_CONVEX_URL) {
+  convex = new ConvexHttpClient(process.env.NEXT_PUBLIC_CONVEX_URL);
+}
 
 export async function POST(request) {
   try {
@@ -50,10 +54,18 @@ export async function POST(request) {
     await transporter.sendMail(mailOptions);
 
     // Store OTP in database
-    await convex.mutation(api.auth.storeOTP, {
-      email: email,
-      otp: otp,
-    });
+    if (convex) {
+      await convex.mutation(api.auth.storeOTP, {
+        email: email,
+        otp: otp,
+      });
+    } else {
+      console.error('Convex client not initialized. Cannot store OTP.');
+      return NextResponse.json(
+        { success: false, message: 'Failed to store OTP due to missing Convex client' },
+        { status: 500 }
+      );
+    }
 
     return NextResponse.json({
       success: true,

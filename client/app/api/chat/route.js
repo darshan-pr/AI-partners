@@ -1,6 +1,15 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { NextResponse } from 'next/server';
-import pdf from 'pdf-parse';
+
+// Conditionally import pdf-parse to prevent build issues
+let pdf = null;
+try {
+  if (typeof window === 'undefined') { // Only in Node.js environment
+    pdf = require('pdf-parse');
+  }
+} catch (error) {
+  console.warn('pdf-parse library not available:', error.message);
+}
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY_CHAT);
 

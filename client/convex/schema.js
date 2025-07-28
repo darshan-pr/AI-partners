@@ -36,13 +36,14 @@ export default defineSchema({
     org_user: v.string(), // Username from localStorage
     org_mail: v.string(),
     org_verified: v.boolean(),
-    class_sec: v.string(),
+    semester: v.string(), // Add semester field
     branch: v.string(),
     createdAt: v.number(),
     verifiedAt: v.optional(v.number()),
   }).index("by_org_user", ["org_user"])
     .index("by_org_mail", ["org_mail"])
-    .index("by_verified", ["org_verified"]),
+    .index("by_verified", ["org_verified"])
+    .index("by_semester", ["semester"]),
 
   quizzes: defineTable({
     username: v.string(),
@@ -180,7 +181,7 @@ export default defineSchema({
   knowledge_nest: defineTable({
     file_id: v.string(), // Convex file storage ID
     organization_id: v.string(), // Reference to org table
-    class_sec: v.string(),
+    semester: v.string(), // Add semester field for filtering
     branch: v.string(),
     uploaded_username: v.string(),
     subject: v.string(),
@@ -191,10 +192,12 @@ export default defineSchema({
     description: v.optional(v.string()),
     is_active: v.boolean(), // For soft delete
   }).index("by_organization", ["organization_id"])
-    .index("by_class_sec", ["class_sec"])
+    .index("by_semester", ["semester"])
     .index("by_branch", ["branch"])
     .index("by_username", ["uploaded_username"])
     .index("by_subject", ["subject"])
     .index("by_upload_date", ["upload_date"])
-    .index("by_org_class", ["organization_id", "class_sec"])
+    .index("by_org_semester", ["organization_id", "semester"])
+    .index("by_semester_only", ["semester"])
+    .index("by_org_branch_semester", ["organization_id", "branch", "semester"]) // Compound index for optimal filtering
 });

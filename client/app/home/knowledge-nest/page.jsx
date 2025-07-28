@@ -14,7 +14,7 @@ const OrgVerification = ({ user, onVerificationSuccess, isDark }) => {
     org_mail: '',
     otp: '',
     org_name: '',
-    class_sec: '',
+    semester: '', // Add semester field
     branch: ''
   });
   const [loading, setLoading] = useState(false);
@@ -93,7 +93,7 @@ const OrgVerification = ({ user, onVerificationSuccess, isDark }) => {
   };
 
   const handleSubmitDetails = async () => {
-    if (!formData.org_name || !formData.class_sec || !formData.branch) {
+    if (!formData.org_name || !formData.semester || !formData.branch) {
       setError('Please fill in all required fields');
       return;
     }
@@ -106,7 +106,7 @@ const OrgVerification = ({ user, onVerificationSuccess, isDark }) => {
         org_name: formData.org_name,
         org_user: user.username,
         org_mail: formData.org_mail,
-        class_sec: formData.class_sec,
+        semester: formData.semester, // Include semester
         branch: formData.branch
       });
 
@@ -293,15 +293,23 @@ const OrgVerification = ({ user, onVerificationSuccess, isDark }) => {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Class/Section
+                  Semester
                 </label>
-                <input
-                  type="text"
-                  value={formData.class_sec}
-                  onChange={(e) => handleInputChange('class_sec', e.target.value)}
-                  placeholder="e.g., 4th Year, Section A"
+                <select
+                  value={formData.semester}
+                  onChange={(e) => handleInputChange('semester', e.target.value)}
                   className="w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                />
+                >
+                  <option value="">Select Semester</option>
+                  <option value="1st Semester">1st Semester</option>
+                  <option value="2nd Semester">2nd Semester</option>
+                  <option value="3rd Semester">3rd Semester</option>
+                  <option value="4th Semester">4th Semester</option>
+                  <option value="5th Semester">5th Semester</option>
+                  <option value="6th Semester">6th Semester</option>
+                  <option value="7th Semester">7th Semester</option>
+                  <option value="8th Semester">8th Semester</option>
+                </select>
               </div>
 
               <div>
@@ -319,7 +327,7 @@ const OrgVerification = ({ user, onVerificationSuccess, isDark }) => {
 
               <button
                 onClick={handleSubmitDetails}
-                disabled={loading || !formData.org_name || !formData.class_sec || !formData.branch}
+                disabled={loading || !formData.org_name || !formData.semester || !formData.branch}
                 className="w-full bg-gradient-to-r from-indigo-500 to-blue-500 text-white font-medium py-3 px-6 rounded-xl hover:from-indigo-600 hover:to-blue-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {loading ? 'Saving...' : 'Complete Verification'}
@@ -401,13 +409,13 @@ const KnowledgeNestDashboard = ({ user, isDark }) => {
 
           <div className="glass-card rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all hover:-translate-y-1">
             <div className="flex items-center gap-4">
-              <div className="p-3 bg-green-100 dark:bg-green-900/30 rounded-xl">
-                <Users className="w-6 h-6 text-green-600" />
+              <div className="p-3 bg-purple-100 dark:bg-purple-900/30 rounded-xl">
+                <BookOpen className="w-6 h-6 text-purple-600" />
               </div>
               <div>
-                <h3 className="font-semibold text-lg text-gray-900 dark:text-gray-100">Class</h3>
+                <h3 className="font-semibold text-lg text-gray-900 dark:text-gray-100">Semester</h3>
                 <p className="text-gray-600 dark:text-gray-400 text-sm">
-                  {userOrgDetails?.org?.class_sec || 'Loading...'}
+                  {userOrgDetails?.org?.semester || 'Loading...'}
                 </p>
               </div>
             </div>
@@ -415,8 +423,8 @@ const KnowledgeNestDashboard = ({ user, isDark }) => {
 
           <div className="glass-card rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all hover:-translate-y-1">
             <div className="flex items-center gap-4">
-              <div className="p-3 bg-purple-100 dark:bg-purple-900/30 rounded-xl">
-                <BookOpen className="w-6 h-6 text-purple-600" />
+              <div className="p-3 bg-orange-100 dark:bg-orange-900/30 rounded-xl">
+                <Settings className="w-6 h-6 text-orange-600" />
               </div>
               <div>
                 <h3 className="font-semibold text-lg text-gray-900 dark:text-gray-100">Branch</h3>

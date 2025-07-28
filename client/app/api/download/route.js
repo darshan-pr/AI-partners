@@ -1,12 +1,24 @@
 import { NextResponse } from 'next/server';
-import { ConvexHttpClient } from "convex/browser";
-import { api } from "@/convex/_generated/api";
+import { ConvexHttpClient } from 'convex/browser';
+import { api } from '@/convex/_generated/api';
 
-const convex = new ConvexHttpClient(process.env.NEXT_PUBLIC_CONVEX_URL);
+// Initialize Convex client only if URL is available
+let convex = null;
+if (process.env.NEXT_PUBLIC_CONVEX_URL) {
+  convex = new ConvexHttpClient(process.env.NEXT_PUBLIC_CONVEX_URL);
+}
 
 export async function POST(request) {
   try {
-    const { file_id, username } = await request.json();
+    if (!convex) {
+      return NextResponse.json(
+        { success: false, message: 'Convex not configured. Please set NEXT_PUBLIC_CONVEX_URL environment variable.' },
+        { status: 500 }
+      );
+    }
+
+    const body = await request.json();
+    const { file_id, username } = body;
 
     if (!file_id || !username) {
       return NextResponse.json(
@@ -15,40 +27,22 @@ export async function POST(request) {
       );
     }
 
-    // Use the Convex download function
+    // Use Convex download function
     const result = await convex.query(api.knowledgeNest.downloadFile, {
       file_id,
       username,
     });
 
-    if (!result.success) {
-      return NextResponse.json(
-        { success: false, message: result.message },
-        { status: 404 }
-      );
-    }
-
-    // Return the download information
-    return NextResponse.json({
-      success: true,
-      downloadUrl: result.downloadUrl,
-      filename: result.filename,
-      file_type: result.file_type,
-      file_size: result.file_size,
-      isDemo: result.isDemo,
-      message: result.message,
-    });
-
+    return NextResponse.json(result);
   } catch (error) {
-    console.error('Download error:', error);
+    console.error('Download API error:', error);
     return NextResponse.json(
-      { success: false, message: 'Failed to prepare download' },
+      { success: false, message: 'Failed to process download request' },
       { status: 500 }
     );
   }
 }
 
-// Legacy GET method for backward compatibility
 export async function GET(request) {
   try {
     const { searchParams } = new URL(request.url);
@@ -62,15 +56,13 @@ export async function GET(request) {
       );
     }
 
-    // For legacy support, return a demo response
-    return NextResponse.json(
-      { 
-        success: false, 
-        message: "Please use the POST method with username for secure downloads" 
-      },
-      { status: 400 }
-    );
-
+    // For now, return a placeholder response
+    // In a real implementation, you would fetch the file from storage
+    return NextResponse.json({
+      message: 'Download functionality is being implemented',
+      fileId,
+      filename
+    });
   } catch (error) {
     console.error('Download GET error:', error);
     return NextResponse.json(

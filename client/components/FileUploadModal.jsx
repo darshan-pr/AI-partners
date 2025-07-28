@@ -292,8 +292,8 @@ const FileUploadModal = ({
                 <p className="font-medium">{userOrgDetails.org_name}</p>
               </div>
               <div>
-                <span className={`${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Class/Section:</span>
-                <p className="font-medium">{userOrgDetails.class_sec}</p>
+                <span className={`${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Semester:</span>
+                <p className="font-medium">{userOrgDetails.semester}</p>
               </div>
               <div>
                 <span className={`${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Branch:</span>

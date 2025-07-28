@@ -2,10 +2,21 @@ import { NextResponse } from 'next/server';
 import { ConvexHttpClient } from "convex/browser";
 import { api } from "@/convex/_generated/api";
 
-const convex = new ConvexHttpClient(process.env.NEXT_PUBLIC_CONVEX_URL);
+// Initialize Convex client only if URL is available
+let convex = null;
+if (process.env.NEXT_PUBLIC_CONVEX_URL) {
+  convex = new ConvexHttpClient(process.env.NEXT_PUBLIC_CONVEX_URL);
+}
 
 export async function POST(request) {
   try {
+    if (!convex) {
+      return NextResponse.json(
+        { success: false, message: 'Convex not configured. Please set NEXT_PUBLIC_CONVEX_URL environment variable.' },
+        { status: 500 }
+      );
+    }
+
     const { email, otp } = await request.json();
 
     if (!email || !otp) {
@@ -26,8 +37,8 @@ export async function POST(request) {
   } catch (error) {
     console.error('Error verifying OTP:', error);
     return NextResponse.json(
-      { success: false, message: error.message || 'Failed to verify OTP' },
-      { status: 400 }
+      { success: false, message: 'Failed to verify OTP' },
+      { status: 500 }
     );
   }
 }

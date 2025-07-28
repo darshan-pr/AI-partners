@@ -1,4 +1,4 @@
-import VoiceAnimationDemo from '../../components/demo/VoiceAnimationDemo';
+import VoiceAnimationDemo from '@/components/demo/VoiceAnimationDemo';
 
 export default function VoiceAnimationTestPage() {
   return <VoiceAnimationDemo />;

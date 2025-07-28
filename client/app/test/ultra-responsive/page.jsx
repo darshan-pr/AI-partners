@@ -16,7 +16,6 @@ import {
   CheckCircle2,
   XCircle,
   Settings,
-  Lightning,
   Eye,
   Timer
 } from 'lucide-react';
@@ -136,7 +135,7 @@ const UltraResponsiveVoiceTest = () => {
 
   const getLogIcon = (type) => {
     switch (type) {
-      case 'excellent': return <Lightning className="w-4 h-4 text-green-500" />;
+              case 'excellent': return <Zap className="w-4 h-4 text-green-500" />;
       case 'good': return <CheckCircle2 className="w-4 h-4 text-blue-500" />;
       case 'slow': return <Timer className="w-4 h-4 text-yellow-500" />;
       case 'error': return <XCircle className="w-4 h-4 text-red-500" />;
@@ -199,7 +198,7 @@ const UltraResponsiveVoiceTest = () => {
           isDark ? 'bg-gray-900 border-gray-800' : 'bg-white border-gray-200'
         } p-6`}>
           <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
-            <Lightning className="w-5 h-5 text-yellow-500" />
+                          <Zap className="w-5 h-5 text-yellow-500" />
             Ultra-Responsive Features
           </h2>
           
@@ -220,7 +219,7 @@ const UltraResponsiveVoiceTest = () => {
               isDark ? 'bg-gray-800' : 'bg-gray-100'
             }`}>
               <div className="flex items-center gap-2 mb-2">
-                <Lightning className="w-5 h-5 text-yellow-500" />
+                <Zap className="w-5 h-5 text-yellow-500" />
                 <span className="font-medium">Instant Stop</span>
               </div>
               <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
@@ -299,7 +298,7 @@ const UltraResponsiveVoiceTest = () => {
                       : 'bg-red-600 hover:bg-red-700 text-white'
                   }`}
                 >
-                  <Lightning className="w-4 h-4" />
+                  <Zap className="w-4 h-4" />
                   Trigger Interruption
                 </button>
               </div>
@@ -421,7 +420,7 @@ const UltraResponsiveVoiceTest = () => {
             <div className={`p-4 rounded-lg text-center ${
               isDark ? 'bg-gray-800 border border-gray-700' : 'bg-gray-100 border border-gray-200'
             }`}>
-              <Lightning className="w-8 h-8 mx-auto mb-2 text-yellow-500" />
+                              <Zap className="w-8 h-8 mx-auto mb-2 text-yellow-500" />
               <div className="font-medium">Response Mode</div>
               <div className="text-sm text-yellow-600">
                 Ultra Fast

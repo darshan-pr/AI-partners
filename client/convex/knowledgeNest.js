@@ -51,7 +51,7 @@ export const uploadFileMetadata = mutation({
       const fileRecord = await ctx.db.insert("knowledge_nest", {
         file_id: args.file_id,
         organization_id: orgData._id,
-        class_sec: orgData.class_sec,
+        semester: orgData.semester, // Add semester field
         branch: orgData.branch,
         uploaded_username: args.username,
         subject: sanitizeText(args.subject),
@@ -96,7 +96,7 @@ export const getUserOrgDetails = query({
         data: {
           organization_id: orgData._id,
           org_name: orgData.org_name,
-          class_sec: orgData.class_sec,
+          semester: orgData.semester,
           branch: orgData.branch,
           username: args.username,
         }
@@ -108,7 +108,7 @@ export const getUserOrgDetails = query({
   },
 });
 
-// Get files for user's organization and class
+// Get files for user's organization, branch, and semester
 export const getKnowledgeNestFiles = query({
   args: {
     username: v.string(),
@@ -126,13 +126,14 @@ export const getKnowledgeNestFiles = query({
         return { success: false, message: "Organization not found or not verified" };
       }
 
-      // Query files for the same organization and class
+      // Query files for the same organization, branch, and semester
       let filesQuery = ctx.db
         .query("knowledge_nest")
         .filter((q) => 
           q.and(
-            q.eq(q.field("organization_id"), orgData._id),
-            q.eq(q.field("class_sec"), orgData.class_sec),
+            q.eq(q.field("organization_id"), orgData._id), // Same organization
+            q.eq(q.field("branch"), orgData.branch), // Same branch
+            q.eq(q.field("semester"), orgData.semester), // Same semester
             q.eq(q.field("is_active"), true)
           )
         );
@@ -151,7 +152,7 @@ export const getKnowledgeNestFiles = query({
         files: files,
         orgInfo: {
           org_name: orgData.org_name,
-          class_sec: orgData.class_sec,
+          semester: orgData.semester,
           branch: orgData.branch,
         }
       };
@@ -216,14 +217,15 @@ export const getFileUrl = query({
         return { success: false, message: "Organization not found or not verified" };
       }
 
-      // Find the file record and verify access
+      // Find the file record and verify access (organization, branch, and semester)
       const fileRecord = await ctx.db
         .query("knowledge_nest")
         .filter((q) => 
           q.and(
             q.eq(q.field("file_id"), args.file_id),
-            q.eq(q.field("organization_id"), orgData._id),
-            q.eq(q.field("class_sec"), orgData.class_sec),
+            q.eq(q.field("organization_id"), orgData._id), // Same organization
+            q.eq(q.field("branch"), orgData.branch), // Same branch
+            q.eq(q.field("semester"), orgData.semester), // Same semester
             q.eq(q.field("is_active"), true)
           )
         )
@@ -286,13 +288,14 @@ export const getSubjects = query({
         return { success: false, message: "Organization not found or not verified" };
       }
 
-      // Get unique subjects from files in the same org and class
+      // Get unique subjects from files in the same organization, branch, and semester
       const files = await ctx.db
         .query("knowledge_nest")
         .filter((q) => 
           q.and(
-            q.eq(q.field("organization_id"), orgData._id),
-            q.eq(q.field("class_sec"), orgData.class_sec),
+            q.eq(q.field("organization_id"), orgData._id), // Same organization
+            q.eq(q.field("branch"), orgData.branch), // Same branch
+            q.eq(q.field("semester"), orgData.semester), // Same semester
             q.eq(q.field("is_active"), true)
           )
         )
@@ -329,14 +332,15 @@ export const downloadFile = query({
         return { success: false, message: "Organization not found or not verified" };
       }
 
-      // Find the file record and verify access
+      // Find the file record and verify access (organization, branch, and semester)
       const fileRecord = await ctx.db
         .query("knowledge_nest")
         .filter((q) => 
           q.and(
             q.eq(q.field("file_id"), args.file_id),
-            q.eq(q.field("organization_id"), orgData._id),
-            q.eq(q.field("class_sec"), orgData.class_sec),
+            q.eq(q.field("organization_id"), orgData._id), // Same organization
+            q.eq(q.field("branch"), orgData.branch), // Same branch
+            q.eq(q.field("semester"), orgData.semester), // Same semester
             q.eq(q.field("is_active"), true)
           )
         )
