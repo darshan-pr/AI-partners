@@ -38,21 +38,27 @@ export const uploadFileMetadata = mutation({
       }
 
       // Get user's organization details
-      const orgData = await ctx.db
-        .query("org")
-        .filter((q) => q.eq(q.field("org_user"), args.username))
+      const userOrg = await ctx.db
+        .query("user_organizations")
+        .withIndex("by_username", (q) => q.eq("username", args.username))
         .first();
 
-      if (!orgData || !orgData.org_verified) {
-        return { success: false, message: "User organization not found or not verified" };
+      if (!userOrg || !userOrg.isActive) {
+        return { success: false, message: "User organization not found or not active" };
+      }
+
+      // Get organization details
+      const organization = await ctx.db.get(userOrg.organization_id);
+      if (!organization || !organization.org_verified) {
+        return { success: false, message: "Organization not found or not verified" };
       }
 
       // Insert file metadata with sanitized strings
       const fileRecord = await ctx.db.insert("knowledge_nest", {
         file_id: args.file_id,
-        organization_id: orgData._id,
-        semester: orgData.semester,
-        branch: orgData.branch,
+        organization_id: userOrg.organization_id,
+        semester: userOrg.semester,
+        branch: userOrg.branch,
         uploaded_username: args.username,
         subject: sanitizeText(args.subject),
         filename: sanitizeText(args.filename),
@@ -61,6 +67,7 @@ export const uploadFileMetadata = mutation({
         upload_date: Date.now(),
         description: sanitizeText(args.description || ""),
         is_active: true,
+        isDemo: false, // Real uploaded file
       });
 
       return { 
@@ -82,22 +89,29 @@ export const getUserOrgDetails = query({
   },
   handler: async (ctx, args) => {
     try {
-      const orgData = await ctx.db
-        .query("org")
-        .filter((q) => q.eq(q.field("org_user"), args.username))
+      // Get user's organization mapping
+      const userOrg = await ctx.db
+        .query("user_organizations")
+        .withIndex("by_username", (q) => q.eq("username", args.username))
         .first();
 
-      if (!orgData || !orgData.org_verified) {
+      if (!userOrg || !userOrg.isActive) {
+        return { success: false, message: "User organization not found or not active" };
+      }
+
+      // Get organization details
+      const organization = await ctx.db.get(userOrg.organization_id);
+      if (!organization || !organization.org_verified) {
         return { success: false, message: "Organization not found or not verified" };
       }
 
       return {
         success: true,
         data: {
-          organization_id: orgData._id,
-          org_name: orgData.org_name,
-          semester: orgData.semester,
-          branch: orgData.branch,
+          organization_id: userOrg.organization_id,
+          org_name: organization.org_name,
+          semester: userOrg.semester,
+          branch: userOrg.branch,
           username: args.username,
         }
       };
@@ -113,16 +127,24 @@ export const getKnowledgeNestFiles = query({
   args: {
     username: v.string(),
     subject: v.optional(v.string()),
+    semester: v.optional(v.string()),
+    branch: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     try {
       // Get user's organization details
-      const orgData = await ctx.db
-        .query("org")
-        .filter((q) => q.eq(q.field("org_user"), args.username))
+      const userOrg = await ctx.db
+        .query("user_organizations")
+        .withIndex("by_username", (q) => q.eq("username", args.username))
         .first();
 
-      if (!orgData || !orgData.org_verified) {
+      if (!userOrg || !userOrg.isActive) {
+        return { success: false, message: "User organization not found or not active" };
+      }
+
+      // Get organization details
+      const organization = await ctx.db.get(userOrg.organization_id);
+      if (!organization || !organization.org_verified) {
         return { success: false, message: "Organization not found or not verified" };
       }
 
@@ -131,9 +153,9 @@ export const getKnowledgeNestFiles = query({
         .query("knowledge_nest")
         .filter((q) => 
           q.and(
-            q.eq(q.field("organization_id"), orgData._id),
-            q.eq(q.field("semester"), orgData.semester),
-            q.eq(q.field("branch"), orgData.branch),
+            q.eq(q.field("organization_id"), userOrg.organization_id),
+            q.eq(q.field("semester"), userOrg.semester),
+            q.eq(q.field("branch"), userOrg.branch),
             q.eq(q.field("is_active"), true)
           )
         );
@@ -151,9 +173,9 @@ export const getKnowledgeNestFiles = query({
         success: true,
         files: files,
         orgInfo: {
-          org_name: orgData.org_name,
-          semester: orgData.semester,
-          branch: orgData.branch,
+          org_name: organization.org_name,
+          semester: userOrg.semester,
+          branch: userOrg.branch,
         }
       };
     } catch (error) {
@@ -208,12 +230,18 @@ export const getFileUrl = query({
   handler: async (ctx, args) => {
     try {
       // Get user's organization details
-      const orgData = await ctx.db
-        .query("org")
-        .filter((q) => q.eq(q.field("org_user"), args.username))
+      const userOrg = await ctx.db
+        .query("user_organizations")
+        .withIndex("by_username", (q) => q.eq("username", args.username))
         .first();
 
-      if (!orgData || !orgData.org_verified) {
+      if (!userOrg || !userOrg.isActive) {
+        return { success: false, message: "User organization not found or not active" };
+      }
+
+      // Get organization details
+      const organization = await ctx.db.get(userOrg.organization_id);
+      if (!organization || !organization.org_verified) {
         return { success: false, message: "Organization not found or not verified" };
       }
 
@@ -223,9 +251,9 @@ export const getFileUrl = query({
         .filter((q) => 
           q.and(
             q.eq(q.field("file_id"), args.file_id),
-            q.eq(q.field("organization_id"), orgData._id),
-            q.eq(q.field("semester"), orgData.semester),
-            q.eq(q.field("branch"), orgData.branch),
+            q.eq(q.field("organization_id"), userOrg.organization_id),
+            q.eq(q.field("semester"), userOrg.semester),
+            q.eq(q.field("branch"), userOrg.branch),
             q.eq(q.field("is_active"), true)
           )
         )
@@ -279,12 +307,18 @@ export const getSubjects = query({
   handler: async (ctx, args) => {
     try {
       // Get user's organization details
-      const orgData = await ctx.db
-        .query("org")
-        .filter((q) => q.eq(q.field("org_user"), args.username))
+      const userOrg = await ctx.db
+        .query("user_organizations")
+        .withIndex("by_username", (q) => q.eq("username", args.username))
         .first();
 
-      if (!orgData || !orgData.org_verified) {
+      if (!userOrg || !userOrg.isActive) {
+        return { success: false, message: "User organization not found or not active" };
+      }
+
+      // Get organization details
+      const organization = await ctx.db.get(userOrg.organization_id);
+      if (!organization || !organization.org_verified) {
         return { success: false, message: "Organization not found or not verified" };
       }
 
@@ -293,9 +327,9 @@ export const getSubjects = query({
         .query("knowledge_nest")
         .filter((q) => 
           q.and(
-            q.eq(q.field("organization_id"), orgData._id),
-            q.eq(q.field("semester"), orgData.semester),
-            q.eq(q.field("branch"), orgData.branch),
+            q.eq(q.field("organization_id"), userOrg.organization_id),
+            q.eq(q.field("semester"), userOrg.semester),
+            q.eq(q.field("branch"), userOrg.branch),
             q.eq(q.field("is_active"), true)
           )
         )
@@ -323,12 +357,18 @@ export const downloadFile = query({
   handler: async (ctx, args) => {
     try {
       // Get user's organization details
-      const orgData = await ctx.db
-        .query("org")
-        .filter((q) => q.eq(q.field("org_user"), args.username))
+      const userOrg = await ctx.db
+        .query("user_organizations")
+        .withIndex("by_username", (q) => q.eq("username", args.username))
         .first();
 
-      if (!orgData || !orgData.org_verified) {
+      if (!userOrg || !userOrg.isActive) {
+        return { success: false, message: "User organization not found or not active" };
+      }
+
+      // Get organization details
+      const organization = await ctx.db.get(userOrg.organization_id);
+      if (!organization || !organization.org_verified) {
         return { success: false, message: "Organization not found or not verified" };
       }
 
@@ -338,9 +378,9 @@ export const downloadFile = query({
         .filter((q) => 
           q.and(
             q.eq(q.field("file_id"), args.file_id),
-            q.eq(q.field("organization_id"), orgData._id),
-            q.eq(q.field("semester"), orgData.semester),
-            q.eq(q.field("branch"), orgData.branch),
+            q.eq(q.field("organization_id"), userOrg.organization_id),
+            q.eq(q.field("semester"), userOrg.semester),
+            q.eq(q.field("branch"), userOrg.branch),
             q.eq(q.field("is_active"), true)
           )
         )

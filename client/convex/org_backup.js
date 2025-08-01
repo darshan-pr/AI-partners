@@ -4,22 +4,36 @@ import { query, mutation } from "./_generated/server";
 // Store OTP for organization verification
 export const storeOrgOTP = mutation({
   args: {
-    org_mail: v.string(),
+    email: v.string(),
     otp: v.string(),
   },
   handler: async (ctx, args) => {
     try {
-      // Store OTP with 5-minute expiration
-      const expiration = Date.now() + 5 * 60 * 1000; // 5 minutes
-      
-      await ctx.db.insert("org_otps", {
-        email: args.org_mail,
+      // Validate email domain
+      if (!args.email.endsWith("@reva.edu.in")) {
+        return { success: false, message: "Only @reva.edu.in domain is allowed" };
+      }
+
+      // Delete any existing OTP for this email
+      const existingOTPs = await ctx.db
+        .query("verification")
+        .filter((q) => q.eq(q.field("email"), args.email))
+        .collect();
+
+      for (const otp of existingOTPs) {
+        await ctx.db.delete(otp._id);
+      }
+
+      // Create new OTP record
+      const otpId = await ctx.db.insert("verification", {
+        email: args.email,
         otp: args.otp,
-        expiration,
-        verified: false,
+        createdAt: Date.now(),
+        expiresAt: Date.now() + 10 * 60 * 1000, // 10 minutes
+        isUsed: false,
       });
 
-      return { success: true, message: "OTP stored successfully" };
+      return { success: true, message: "OTP stored successfully", id: otpId };
     } catch (error) {
       console.error("Error storing OTP:", error);
       return { success: false, message: "Failed to store OTP" };
@@ -27,7 +41,7 @@ export const storeOrgOTP = mutation({
   },
 });
 
-// Verify OTP for organization
+// Verify organization email OTP (separate from user auth OTP)
 export const verifyOrgOTP = mutation({
   args: {
     org_mail: v.string(),
@@ -35,66 +49,54 @@ export const verifyOrgOTP = mutation({
   },
   handler: async (ctx, args) => {
     try {
-      // Find the most recent OTP for this email
-      const otpRecord = await ctx.db
-        .query("org_otps")
-        .filter((q) => q.eq(q.field("email"), args.org_mail))
-        .order("desc")
-        .first();
-
-      if (!otpRecord) {
-        return { success: false, message: "No OTP found for this email" };
+      // Validate email domain first
+      if (!args.org_mail.endsWith("@reva.edu.in")) {
+        return { success: false, message: "Only @reva.edu.in domain is allowed" };
       }
 
-      if (otpRecord.otp !== args.otp) {
-        return { success: false, message: "Invalid OTP" };
-      }
-
-      if (Date.now() > otpRecord.expiration) {
-        return { success: false, message: "OTP has expired" };
-      }
-
-      if (otpRecord.verified) {
-        return { success: false, message: "OTP has already been used" };
-      }
-
-      // Mark OTP as verified
-      await ctx.db.patch(otpRecord._id, { verified: true });
-
-      return { success: true, message: "OTP verified successfully" };
-    } catch (error) {
-      console.error("Error verifying OTP:", error);
-      return { success: false, message: "Failed to verify OTP" };
-    }
-  },
-});
-
-// Check OTP verification status
-export const checkOTPVerification = query({
-  args: {
-    org_mail: v.string(),
-  },
-  handler: async (ctx, args) => {
-    try {
-      const verifiedOTP = await ctx.db
-        .query("org_otps")
+      // Check OTP in verification table
+      const verification = await ctx.db
+        .query("verification")
         .filter((q) => 
           q.and(
             q.eq(q.field("email"), args.org_mail),
-            q.eq(q.field("verified"), true)
+            q.eq(q.field("otp"), args.otp),
+            q.eq(q.field("isUsed"), false)
           )
         )
-        .order("desc")
         .first();
 
-      return { 
-        success: true, 
-        verified: !!verifiedOTP,
-        message: verifiedOTP ? "Email verified" : "Email not verified"
-      };
+      if (!verification) {
+        // Check if there's any OTP for this email (used or unused)
+        const anyOtp = await ctx.db
+          .query("verification")
+          .filter((q) => q.eq(q.field("email"), args.org_mail))
+          .order("desc")
+          .first();
+
+        if (!anyOtp) {
+          return { success: false, message: "No OTP found for this email. Please request a new one." };
+        } else if (anyOtp.isUsed) {
+          return { success: false, message: "This OTP has already been used. Please request a new one." };
+        } else {
+          return { success: false, message: "Invalid OTP. Please check and try again." };
+        }
+      }
+
+      // Check if OTP is expired
+      if (verification.expiresAt < Date.now()) {
+        return { success: false, message: "OTP has expired. Please request a new one." };
+      }
+
+      // Mark OTP as used
+      await ctx.db.patch(verification._id, {
+        isUsed: true,
+      });
+
+      return { success: true, message: "Organization email verified successfully" };
     } catch (error) {
-      console.error("Error checking OTP verification:", error);
-      return { success: false, message: "Failed to check verification status" };
+      console.error("Error verifying org email:", error);
+      return { success: false, message: "Failed to verify OTP. Please try again." };
     }
   },
 });
@@ -130,15 +132,14 @@ async function createDemoFiles(ctx, orgId, semester, branch) {
       organization_id: orgId,
       semester: semester,
       branch: branch,
-      uploaded_username: "system",
       subject: file.subject,
       filename: file.name,
-      file_id: "file_demo_" + Math.random().toString(36).substr(2, 9),
-      file_size: file.size,
-      file_type: file.mimetype,
-      upload_date: Date.now(),
+      fileUrl: null, // Demo files don't have actual storage
+      mimetype: file.mimetype,
+      size: file.size,
       description: file.description,
-      is_active: true,
+      uploadedBy: "system",
+      uploadedAt: Date.now(),
       isDemo: true, // Mark as demo file
     });
   }
@@ -277,7 +278,7 @@ export const isOrgVerified = query({
 
       // Get the organization and check if it's verified
       const organization = await ctx.db.get(userOrg.organization_id);
-      return !!(organization && organization.org_verified);
+      return organization ? organization.org_verified : false;
     } catch (error) {
       console.error("Error checking org verification:", error);
       return false;

@@ -4,7 +4,7 @@ import { query, mutation } from "./_generated/server";
 // Store OTP for organization verification
 export const storeOrgOTP = mutation({
   args: {
-    org_mail: v.string(),
+    email: v.string(),
     otp: v.string(),
   },
   handler: async (ctx, args) => {
@@ -13,7 +13,7 @@ export const storeOrgOTP = mutation({
       const expiration = Date.now() + 5 * 60 * 1000; // 5 minutes
       
       await ctx.db.insert("org_otps", {
-        email: args.org_mail,
+        email: args.email,
         otp: args.otp,
         expiration,
         verified: false,
@@ -30,7 +30,7 @@ export const storeOrgOTP = mutation({
 // Verify OTP for organization
 export const verifyOrgOTP = mutation({
   args: {
-    org_mail: v.string(),
+    email: v.string(),
     otp: v.string(),
   },
   handler: async (ctx, args) => {
@@ -38,7 +38,7 @@ export const verifyOrgOTP = mutation({
       // Find the most recent OTP for this email
       const otpRecord = await ctx.db
         .query("org_otps")
-        .filter((q) => q.eq(q.field("email"), args.org_mail))
+        .filter((q) => q.eq(q.field("email"), args.email))
         .order("desc")
         .first();
 
@@ -72,7 +72,7 @@ export const verifyOrgOTP = mutation({
 // Check OTP verification status
 export const checkOTPVerification = query({
   args: {
-    org_mail: v.string(),
+    email: v.string(),
   },
   handler: async (ctx, args) => {
     try {
@@ -80,7 +80,7 @@ export const checkOTPVerification = query({
         .query("org_otps")
         .filter((q) => 
           q.and(
-            q.eq(q.field("email"), args.org_mail),
+            q.eq(q.field("email"), args.email),
             q.eq(q.field("verified"), true)
           )
         )

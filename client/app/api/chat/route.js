@@ -1,6 +1,7 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { NextResponse } from 'next/server';
-import pdf from 'pdf-parse';
+// Import pdf-parse dynamically to avoid build issues
+// import pdf from 'pdf-parse';
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY_CHAT);
 
@@ -64,6 +65,8 @@ async function processFile(file) {
       console.log(`[FILE PROCESSING] Processing PDF document: ${file.name}`);
       try {
         console.log(`[FILE PROCESSING] Extracting text from PDF: ${file.name}`);
+        // Dynamic import for pdf-parse to avoid build issues
+        const pdf = (await import('pdf-parse')).default;
         const pdfData = await pdf(buffer);
         
         if (pdfData.text && pdfData.text.trim().length > 0) {

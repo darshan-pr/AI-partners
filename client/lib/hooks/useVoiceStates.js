@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 
 export const useVoiceStates = () => {
   const [isUserSpeaking, setIsUserSpeaking] = useState(false);
@@ -10,6 +10,33 @@ export const useVoiceStates = () => {
   
   const animationIntervalRef = useRef(null);
   const intensityTimeoutRef = useRef(null);
+
+  const startVoiceAnimation = useCallback(() => {
+    if (animationIntervalRef.current) return;
+    
+    animationIntervalRef.current = setInterval(() => {
+      // Create dynamic intensity based on speaking pattern
+      const baseIntensity = isAISpeaking ? 0.7 : 0.5;
+      const randomVariation = Math.random() * 0.4;
+      setVoiceAnimationIntensity(baseIntensity + randomVariation);
+    }, 150);
+  }, [isAISpeaking]);
+
+  const stopVoiceAnimation = useCallback(() => {
+    if (animationIntervalRef.current) {
+      clearInterval(animationIntervalRef.current);
+      animationIntervalRef.current = null;
+    }
+    
+    // Fade out animation intensity
+    if (intensityTimeoutRef.current) {
+      clearTimeout(intensityTimeoutRef.current);
+    }
+    
+    intensityTimeoutRef.current = setTimeout(() => {
+      setVoiceAnimationIntensity(0);
+    }, 300);
+  }, []);
 
   // Monitor voice states and update animation intensity
   useEffect(() => {
@@ -24,34 +51,7 @@ export const useVoiceStates = () => {
     return () => {
       stopVoiceAnimation();
     };
-  }, [isUserSpeaking, isAISpeaking]);
-
-  const startVoiceAnimation = () => {
-    if (animationIntervalRef.current) return;
-    
-    animationIntervalRef.current = setInterval(() => {
-      // Create dynamic intensity based on speaking pattern
-      const baseIntensity = isAISpeaking ? 0.7 : 0.5;
-      const randomVariation = Math.random() * 0.4;
-      setVoiceAnimationIntensity(baseIntensity + randomVariation);
-    }, 150);
-  };
-
-  const stopVoiceAnimation = () => {
-    if (animationIntervalRef.current) {
-      clearInterval(animationIntervalRef.current);
-      animationIntervalRef.current = null;
-    }
-    
-    // Fade out animation intensity
-    if (intensityTimeoutRef.current) {
-      clearTimeout(intensityTimeoutRef.current);
-    }
-    
-    intensityTimeoutRef.current = setTimeout(() => {
-      setVoiceAnimationIntensity(0);
-    }, 300);
-  };
+  }, [isUserSpeaking, isAISpeaking, startVoiceAnimation, stopVoiceAnimation]);
 
   // Voice state setters
   const startUserSpeaking = () => {

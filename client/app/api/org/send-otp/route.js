@@ -127,7 +127,7 @@ export async function POST(request) {
     await transporter.sendMail(mailOptions);
 
     await convex.mutation(api.org.storeOrgOTP, {
-      email: org_mail,
+      org_mail: org_mail,
       otp: otp,
     });
 

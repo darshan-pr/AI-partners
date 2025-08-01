@@ -22,7 +22,8 @@ import {
   List,
   Loader2,
   AlertCircle,
-  Upload
+  Upload,
+  GraduationCap
 } from 'lucide-react';
 
 const FileDisplayComponent = ({ 
@@ -206,63 +207,110 @@ const FileDisplayComponent = ({
 
   return (
     <div className="space-y-6">
-      {/* Organization Info */}
+      {/* Organization Info - Enhanced Mobile Design */}
       {filesData?.orgInfo && (
-        <div className="glass-card rounded-2xl p-6">
-          <h3 className="font-semibold text-lg text-gray-900 dark:text-gray-100 mb-2">📚 Knowledge Nest - {filesData.orgInfo?.org_name || 'Organization'}</h3>
-          <p className="text-gray-600 dark:text-gray-400">
-                                  Semester: {filesData.orgInfo?.semester || 'N/A'} • Branch: {filesData.orgInfo?.branch || 'N/A'}
-          </p>
+        <div className={`glass-card rounded-2xl p-4 lg:p-6 ${
+          isDark ? 'bg-gray-800/30' : 'bg-white/30'
+        }`}>
+          <div className="flex items-center gap-3 mb-2">
+            <div className={`p-2 rounded-lg ${
+              isDark ? 'bg-blue-900/30' : 'bg-blue-100'
+            }`}>
+              <Archive className="w-5 h-5 text-blue-600" />
+            </div>
+            <h3 className={`font-semibold text-lg ${
+              isDark ? 'text-white' : 'text-gray-900'
+            }`}>
+              📚 {filesData.orgInfo?.org_name || 'Organization'}
+            </h3>
+          </div>
+          <div className={`text-sm ${
+            isDark ? 'text-gray-300' : 'text-gray-600'
+          }`}>
+            <div className="flex flex-wrap gap-4">
+              <span className="flex items-center gap-1">
+                <GraduationCap className="w-4 h-4" />
+                Semester: {filesData.orgInfo?.semester || 'N/A'}
+              </span>
+              <span className="flex items-center gap-1">
+                <BookOpen className="w-4 h-4" />
+                Branch: {filesData.orgInfo?.branch || 'N/A'}
+              </span>
+            </div>
+          </div>
         </div>
       )}
 
-      {/* Controls */}
-      <div className="flex flex-col sm:flex-row gap-4 items-center justify-between">
-        {/* Search */}
+      {/* Enhanced Controls - Mobile Responsive */}
+      <div className="flex flex-col sm:flex-row gap-4 items-stretch sm:items-center justify-between">
+        {/* Search Bar */}
         <div className="relative flex-1 max-w-md">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+          <Search className={`absolute left-4 top-1/2 transform -translate-y-1/2 w-4 h-4 ${
+            isDark ? 'text-gray-400' : 'text-gray-500'
+          }`} />
           <input
             type="text"
-            placeholder="Search files..."
+            placeholder="Search files, subjects, or users..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-10 pr-4 py-3 rounded-2xl glass-card border-0 focus:outline-none focus:ring-2 focus:ring-blue-500/50 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400"
+            className={`w-full pl-12 pr-4 py-3 rounded-2xl border-0 transition-all duration-200 ${
+              isDark 
+                ? 'bg-gray-800/50 text-white placeholder-gray-400 focus:bg-gray-700/50' 
+                : 'bg-white/50 text-gray-900 placeholder-gray-500 focus:bg-white/70'
+            } backdrop-blur-sm focus:outline-none focus:ring-2 focus:ring-blue-500/50`}
           />
         </div>
 
-        {/* Controls */}
-        <div className="flex items-center gap-2">
+        {/* Control Buttons */}
+        <div className="flex items-center gap-3">
           {/* Filter Toggle */}
           <button
             onClick={() => setShowFilters(!showFilters)}
-            className={`p-3 rounded-2xl transition-all glass-card ${
+            className={`p-3 rounded-2xl transition-all duration-200 backdrop-blur-sm ${
               showFilters
-                ? 'ring-2 ring-blue-500/50 text-blue-600 dark:text-blue-400'
-                : 'text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200'
+                ? isDark 
+                  ? 'bg-blue-900/50 text-blue-300 ring-2 ring-blue-500/50' 
+                  : 'bg-blue-100/80 text-blue-700 ring-2 ring-blue-500/50'
+                : isDark 
+                  ? 'bg-gray-800/50 text-gray-400 hover:bg-gray-700/50 hover:text-gray-200' 
+                  : 'bg-white/50 text-gray-600 hover:bg-white/70 hover:text-gray-800'
             }`}
+            title="Toggle Filters"
           >
             <Filter className="w-4 h-4" />
           </button>
 
-          {/* View Mode */}
-          <div className="flex rounded-2xl overflow-hidden glass-card">
+          {/* View Mode Toggle */}
+          <div className={`flex rounded-2xl overflow-hidden backdrop-blur-sm ${
+            isDark ? 'bg-gray-800/50' : 'bg-white/50'
+          }`}>
             <button
               onClick={() => setViewMode('grid')}
-              className={`p-3 transition-all ${
+              className={`p-3 transition-all duration-200 ${
                 viewMode === 'grid'
-                  ? 'bg-blue-500/20 text-blue-600 dark:text-blue-400'
-                  : 'text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200'
+                  ? isDark 
+                    ? 'bg-blue-900/50 text-blue-300' 
+                    : 'bg-blue-100/80 text-blue-700'
+                  : isDark 
+                    ? 'text-gray-400 hover:text-gray-200 hover:bg-gray-700/30' 
+                    : 'text-gray-600 hover:text-gray-800 hover:bg-white/30'
               }`}
+              title="Grid View"
             >
               <Grid className="w-4 h-4" />
             </button>
             <button
               onClick={() => setViewMode('list')}
-              className={`p-3 transition-all ${
+              className={`p-3 transition-all duration-200 ${
                 viewMode === 'list'
-                  ? 'bg-blue-500/20 text-blue-600 dark:text-blue-400'
-                  : 'text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200'
+                  ? isDark 
+                    ? 'bg-blue-900/50 text-blue-300' 
+                    : 'bg-blue-100/80 text-blue-700'
+                  : isDark 
+                    ? 'text-gray-400 hover:text-gray-200 hover:bg-gray-700/30' 
+                    : 'text-gray-600 hover:text-gray-800 hover:bg-white/30'
               }`}
+              title="List View"
             >
               <List className="w-4 h-4" />
             </button>
@@ -270,16 +318,26 @@ const FileDisplayComponent = ({
         </div>
       </div>
 
-      {/* Filters */}
+      {/* Enhanced Filters Panel */}
       {showFilters && (
-        <div className="glass-card rounded-2xl p-6">
+        <div className={`glass-card rounded-2xl p-4 lg:p-6 transition-all duration-300 ${
+          isDark ? 'bg-gray-800/30' : 'bg-white/30'
+        }`}>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Filter by Subject</label>
+              <label className={`block text-sm font-medium mb-2 ${
+                isDark ? 'text-gray-300' : 'text-gray-700'
+              }`}>
+                📚 Filter by Subject
+              </label>
               <select
                 value={filterSubject}
                 onChange={(e) => setFilterSubject(e.target.value)}
-                className="w-full p-3 rounded-xl glass-card border-0 focus:outline-none focus:ring-2 focus:ring-blue-500/50 text-gray-900 dark:text-gray-100"
+                className={`w-full p-3 rounded-xl border-0 transition-all duration-200 ${
+                  isDark 
+                    ? 'bg-gray-800/50 text-white focus:bg-gray-700/50' 
+                    : 'bg-white/50 text-gray-900 focus:bg-white/70'
+                } backdrop-blur-sm focus:outline-none focus:ring-2 focus:ring-blue-500/50`}
               >
                 <option value="">All Subjects</option>
                 {subjectsData?.subjects?.map((subject) => (
@@ -289,29 +347,63 @@ const FileDisplayComponent = ({
                 ))}
               </select>
             </div>
+            {/* Add more filter options here in future */}
           </div>
         </div>
       )}
 
-      {/* Files Count */}
-      <div className="text-sm text-gray-600 dark:text-gray-400">
-        {filteredFiles.length} file{filteredFiles.length !== 1 ? 's' : ''} found
+      {/* Files Count with better mobile styling */}
+      <div className={`flex items-center gap-2 text-sm ${
+        isDark ? 'text-gray-400' : 'text-gray-600'
+      }`}>
+        <FileText className="w-4 h-4" />
+        <span>
+          {filteredFiles.length} file{filteredFiles.length !== 1 ? 's' : ''} found
+        </span>
       </div>
 
-      {/* Files Display */}
+      {/* Enhanced Empty State */}
       {filteredFiles.length === 0 ? (
-        <div className="text-center py-16">
-          <div className="glass-card rounded-3xl p-12 max-w-md mx-auto">
-            <File className="w-20 h-20 mx-auto mb-6 text-gray-400 dark:text-gray-500" />
-            <h3 className="text-xl font-semibold mb-3 text-gray-700 dark:text-gray-300">No files found</h3>
-            <p className="text-gray-500 dark:text-gray-400 mb-6">
+        <div className="text-center py-12 lg:py-16">
+          <div className={`glass-card rounded-3xl p-8 lg:p-12 max-w-md mx-auto ${
+            isDark ? 'bg-gray-800/30' : 'bg-white/30'
+          }`}>
+            <div className="relative mb-6">
+              <div className={`w-20 h-20 mx-auto rounded-full flex items-center justify-center ${
+                isDark ? 'bg-gray-700/50' : 'bg-gray-100/80'
+              }`}>
+                <File className={`w-10 h-10 ${
+                  isDark ? 'text-gray-400' : 'text-gray-500'
+                }`} />
+              </div>
+              <div className={`absolute -top-2 -right-2 w-8 h-8 rounded-full flex items-center justify-center ${
+                isDark ? 'bg-blue-900/50' : 'bg-blue-100'
+              }`}>
+                <Search className="w-4 h-4 text-blue-500" />
+              </div>
+            </div>
+            
+            <h3 className={`text-xl font-semibold mb-3 ${
+              isDark ? 'text-gray-200' : 'text-gray-800'
+            }`}>
+              No files found
+            </h3>
+            
+            <p className={`mb-6 leading-relaxed ${
+              isDark ? 'text-gray-400' : 'text-gray-600'
+            }`}>
               {searchTerm || filterSubject 
-                ? 'Try adjusting your search or filters'
-                : 'Upload your first file to get started'
+                ? 'Try adjusting your search terms or filters to find more files'
+                : 'Be the first to share knowledge! Upload your study materials to get started'
               }
             </p>
+            
             {!searchTerm && !filterSubject && (
-              <div className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-blue-500/20 text-blue-700 dark:text-blue-400 text-sm">
+              <div className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium ${
+                isDark 
+                  ? 'bg-blue-900/50 text-blue-300' 
+                  : 'bg-blue-100/80 text-blue-700'
+              }`}>
                 <Upload className="w-4 h-4" />
                 Click "Upload Resource" to add files
               </div>
@@ -319,61 +411,104 @@ const FileDisplayComponent = ({
           </div>
         </div>
       ) : viewMode === 'grid' ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+        /* Enhanced Grid View - Mobile Responsive */
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 lg:gap-6">
           {filteredFiles.map((file) => (
             <div
               key={file._id}
-              className={`glass-card rounded-2xl p-4 transition-all hover:shadow-lg hover:-translate-y-1 hover:scale-[1.02] ${
-                onFileSelect ? 'cursor-pointer hover:ring-2 hover:ring-blue-500/50' : ''
-              }`}
+              className={`glass-card rounded-2xl p-4 lg:p-5 transition-all duration-300 hover:shadow-lg hover:-translate-y-1 hover:scale-[1.02] group ${
+                onFileSelect 
+                  ? 'cursor-pointer hover:ring-2 hover:ring-blue-500/50' 
+                  : ''
+              } ${isDark ? 'bg-gray-800/30' : 'bg-white/30'}`}
               onClick={() => onFileSelect && onFileSelect(file)}
             >
-              <div className="flex items-center gap-3 mb-3">
-                {getFileIcon(file.file_type)}
+              {/* File Header */}
+              <div className="flex items-start gap-3 mb-4">
+                <div className="flex-shrink-0">
+                  {getFileIcon(file.file_type, 'w-7 h-7')}
+                </div>
                 <div className="flex-1 min-w-0">
-                  <p className="font-medium truncate text-gray-900 dark:text-gray-100" title={file.filename}>
+                  <p className={`font-medium truncate text-sm lg:text-base group-hover:text-blue-600 transition-colors ${
+                    isDark ? 'text-white' : 'text-gray-900'
+                  }`} title={file.filename}>
                     {file.filename}
                   </p>
-                  <p className="text-xs text-gray-500 dark:text-gray-400">
+                  <p className={`text-xs ${
+                    isDark ? 'text-gray-400' : 'text-gray-500'
+                  }`}>
                     {formatFileSize(file.file_size)}
                   </p>
                 </div>
               </div>
 
-              <div className="space-y-2 text-sm">
+              {/* File Metadata */}
+              <div className="space-y-2 text-sm mb-4">
                 <div className="flex items-center gap-2">
-                  <BookOpen className="w-4 h-4 text-blue-500" />
-                  <span className="truncate text-gray-700 dark:text-gray-300">{file.subject}</span>
+                  <BookOpen className="w-4 h-4 text-blue-500 flex-shrink-0" />
+                  <span className={`truncate ${
+                    isDark ? 'text-gray-300' : 'text-gray-700'
+                  }`} title={file.subject}>
+                    {file.subject}
+                  </span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <User className="w-4 h-4 text-green-500" />
-                  <span className="truncate text-gray-700 dark:text-gray-300">{file.uploaded_username}</span>
+                  <User className="w-4 h-4 text-green-500 flex-shrink-0" />
+                  <span className={`truncate ${
+                    isDark ? 'text-gray-300' : 'text-gray-700'
+                  }`} title={file.uploaded_username}>
+                    {file.uploaded_username}
+                  </span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <Calendar className="w-4 h-4 text-purple-500" />
-                  <span className="text-xs text-gray-500 dark:text-gray-400">{formatDate(file.upload_date)}</span>
+                  <Calendar className="w-4 h-4 text-purple-500 flex-shrink-0" />
+                  <span className={`text-xs ${
+                    isDark ? 'text-gray-400' : 'text-gray-500'
+                  }`}>
+                    {formatDate(file.upload_date)}
+                  </span>
                 </div>
               </div>
 
+              {/* File Description */}
               {file.description && (
-                <p className="text-xs mt-2 p-2 rounded-lg glass-card text-gray-600 dark:text-gray-400 line-clamp-2">
-                  {file.description}
-                </p>
+                <div className={`text-xs p-3 rounded-lg mb-4 ${
+                  isDark ? 'bg-gray-700/30 text-gray-400' : 'bg-gray-100/60 text-gray-600'
+                }`}>
+                  <p className="line-clamp-2" title={file.description}>
+                    {file.description}
+                  </p>
+                </div>
               )}
 
+              {/* Action Buttons */}
               {!onFileSelect && (
-                <div className="flex items-center gap-2 mt-4">
+                <div className="flex items-center gap-2">
                   <button
-                    onClick={() => handlePreview(file)}
-                    className="flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-xl text-xs transition-all bg-green-500/20 hover:bg-green-500/30 text-green-700 dark:text-green-400 hover:scale-105"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handlePreview(file);
+                    }}
+                    className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-xl text-xs font-medium transition-all hover:scale-105 ${
+                      isDark 
+                        ? 'bg-green-900/40 hover:bg-green-900/60 text-green-300' 
+                        : 'bg-green-100/80 hover:bg-green-200/80 text-green-700'
+                    }`}
                   >
                     <Eye className="w-3 h-3" />
                     Preview
                   </button>
                   <button
-                    onClick={() => handleDownload(file.file_id, file.filename)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDownload(file.file_id, file.filename);
+                    }}
                     disabled={downloadingFile === file.file_id}
-                    className="flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-xl text-xs transition-all bg-blue-500/20 hover:bg-blue-500/30 text-blue-700 dark:text-blue-400 hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-xl text-xs font-medium transition-all hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed ${
+                      isDark 
+                        ? 'bg-blue-900/40 hover:bg-blue-900/60 text-blue-300' 
+                        : 'bg-blue-100/80 hover:bg-blue-200/80 text-blue-700'
+                    }`}
                   >
                     {downloadingFile === file.file_id ? (
                       <Loader2 className="w-3 h-3 animate-spin" />
@@ -384,8 +519,16 @@ const FileDisplayComponent = ({
                   </button>
                   {file.uploaded_username === username && (
                     <button
-                      onClick={() => handleDelete(file.file_id)}
-                      className="p-2 rounded-xl transition-all bg-red-500/20 hover:bg-red-500/30 text-red-700 dark:text-red-400 hover:scale-105"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDelete(file.file_id);
+                      }}
+                      className={`p-2 rounded-xl transition-all hover:scale-105 ${
+                        isDark 
+                          ? 'bg-red-900/40 hover:bg-red-900/60 text-red-300' 
+                          : 'bg-red-100/80 hover:bg-red-200/80 text-red-700'
+                      }`}
+                      title="Delete file"
                     >
                       <Trash2 className="w-3 h-3" />
                     </button>
@@ -396,70 +539,115 @@ const FileDisplayComponent = ({
           ))}
         </div>
       ) : (
+        /* Enhanced List View - Mobile Responsive */
         <div className="space-y-3">
           {filteredFiles.map((file) => (
             <div
               key={file._id}
-              className={`glass-card rounded-2xl p-4 transition-all hover:shadow-lg hover:-translate-y-1 ${
-                onFileSelect ? 'cursor-pointer hover:ring-2 hover:ring-blue-500/50' : ''
-              }`}
+              className={`glass-card rounded-2xl p-4 lg:p-5 transition-all duration-300 hover:shadow-lg hover:-translate-y-1 group ${
+                onFileSelect 
+                  ? 'cursor-pointer hover:ring-2 hover:ring-blue-500/50' 
+                  : ''
+              } ${isDark ? 'bg-gray-800/30' : 'bg-white/30'}`}
               onClick={() => onFileSelect && onFileSelect(file)}
             >
-              <div className="flex items-center gap-4">
-                {getFileIcon(file.file_type)}
+              <div className="flex items-start gap-4">
+                <div className="flex-shrink-0">
+                  {getFileIcon(file.file_type, 'w-6 h-6 lg:w-8 lg:h-8')}
+                </div>
                 
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-4 mb-1">
-                    <h3 className="font-medium truncate text-gray-900 dark:text-gray-100">{file.filename}</h3>
-                    <span className="text-xs px-3 py-1 rounded-full bg-blue-500/20 text-blue-700 dark:text-blue-400">
+                  <div className="flex flex-col lg:flex-row lg:items-center gap-2 lg:gap-4 mb-2">
+                    <h3 className={`font-medium text-sm lg:text-base truncate group-hover:text-blue-600 transition-colors ${
+                      isDark ? 'text-white' : 'text-gray-900'
+                    }`} title={file.filename}>
+                      {file.filename}
+                    </h3>
+                    <span className={`text-xs px-3 py-1 rounded-full flex-shrink-0 ${
+                      isDark 
+                        ? 'bg-blue-900/40 text-blue-300' 
+                        : 'bg-blue-100/80 text-blue-700'
+                    }`}>
                       {file.subject}
                     </span>
                   </div>
                   
-                  <div className="flex items-center gap-4 text-sm">
-                    <span className="text-gray-500 dark:text-gray-400">
+                  <div className={`flex flex-wrap items-center gap-3 lg:gap-4 text-sm ${
+                    isDark ? 'text-gray-400' : 'text-gray-500'
+                  }`}>
+                    <span className="flex items-center gap-1">
+                      <Archive className="w-3 h-3" />
                       {formatFileSize(file.file_size)}
                     </span>
-                    <span className="text-gray-500 dark:text-gray-400">
-                      by {file.uploaded_username}
+                    <span className="flex items-center gap-1">
+                      <User className="w-3 h-3" />
+                      {file.uploaded_username}
                     </span>
-                    <span className="text-gray-500 dark:text-gray-400">
+                    <span className="flex items-center gap-1">
+                      <Calendar className="w-3 h-3" />
                       {formatDate(file.upload_date)}
                     </span>
                   </div>
                   
                   {file.description && (
-                    <p className="text-sm mt-1 text-gray-600 dark:text-gray-400">
+                    <p className={`text-sm mt-2 line-clamp-1 ${
+                      isDark ? 'text-gray-300' : 'text-gray-600'
+                    }`} title={file.description}>
                       {file.description}
                     </p>
                   )}
                 </div>
 
+                {/* List View Actions */}
                 {!onFileSelect && (
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-shrink-0">
                     <button
-                      onClick={() => handlePreview(file)}
-                      className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm transition-all bg-green-500/20 hover:bg-green-500/30 text-green-700 dark:text-green-400 hover:scale-105"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handlePreview(file);
+                      }}
+                      className={`flex items-center gap-2 px-3 lg:px-4 py-2 rounded-xl text-sm font-medium transition-all hover:scale-105 ${
+                        isDark 
+                          ? 'bg-green-900/40 hover:bg-green-900/60 text-green-300' 
+                          : 'bg-green-100/80 hover:bg-green-200/80 text-green-700'
+                      }`}
                     >
                       <Eye className="w-4 h-4" />
-                      Preview
+                      <span className="hidden sm:inline">Preview</span>
                     </button>
                     <button
-                      onClick={() => handleDownload(file.file_id, file.filename)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDownload(file.file_id, file.filename);
+                      }}
                       disabled={downloadingFile === file.file_id}
-                      className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm transition-all bg-blue-500/20 hover:bg-blue-500/30 text-blue-700 dark:text-blue-400 hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
+                      className={`flex items-center gap-2 px-3 lg:px-4 py-2 rounded-xl text-sm font-medium transition-all hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed ${
+                        isDark 
+                          ? 'bg-blue-900/40 hover:bg-blue-900/60 text-blue-300' 
+                          : 'bg-blue-100/80 hover:bg-blue-200/80 text-blue-700'
+                      }`}
                     >
                       {downloadingFile === file.file_id ? (
                         <Loader2 className="w-4 h-4 animate-spin" />
                       ) : (
                         <Download className="w-4 h-4" />
                       )}
-                      {downloadingFile === file.file_id ? 'Downloading...' : 'Download'}
+                      <span className="hidden sm:inline">
+                        {downloadingFile === file.file_id ? 'Downloading...' : 'Download'}
+                      </span>
                     </button>
                     {file.uploaded_username === username && (
                       <button
-                        onClick={() => handleDelete(file.file_id)}
-                        className="p-2 rounded-xl transition-all bg-red-500/20 hover:bg-red-500/30 text-red-700 dark:text-red-400 hover:scale-105"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDelete(file.file_id);
+                        }}
+                        className={`p-2 rounded-xl transition-all hover:scale-105 ${
+                          isDark 
+                            ? 'bg-red-900/40 hover:bg-red-900/60 text-red-300' 
+                            : 'bg-red-100/80 hover:bg-red-200/80 text-red-700'
+                        }`}
+                        title="Delete file"
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>
